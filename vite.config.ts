@@ -1,8 +1,5 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  root: '.',
-  server: {
-    open: false,
-  },
+  base: '/galactic-odyssey/',
 });
