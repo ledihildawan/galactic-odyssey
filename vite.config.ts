@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: '/galactic-odyssey/',
+  base: 'https://ledihildawan.github.io/galactic-odyssey/',
 });
