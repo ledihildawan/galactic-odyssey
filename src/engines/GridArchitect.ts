@@ -23,7 +23,7 @@ export default class GridArchitect {
   private _isRandomMode = OdysseyConfig.display.defaultMode === 'random';
 
   static readonly shortcutMap: Record<string, (e: KeyboardEvent, self: GridArchitect) => void> = {
-    'ctrl+t': (e: KeyboardEvent, self: GridArchitect) => {
+    'ctrl+.': (e: KeyboardEvent, self: GridArchitect) => {
       e.preventDefault();
       EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'theme' });
       self._toggleTheme();
