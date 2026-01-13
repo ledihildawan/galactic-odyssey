@@ -2,6 +2,7 @@ import sfxManifest from '../assets/manifest';
 import { showToast } from '../ui/Toast';
 import { OdysseyConfig } from './Config';
 import EventBus from './EventBus';
+import { EVENT_KEYS, STORAGE_KEYS } from './Keys';
 
 export default class GalacticAudio {
   private _path: string = OdysseyConfig.audio.basePath;
@@ -22,20 +23,22 @@ export default class GalacticAudio {
     this._initAudioContext();
 
     this._unbinds = [];
-    this._unbinds.push(EventBus.on('audio:play', (p: any) => this.play(p?.key, p?.options)));
+    this._unbinds.push(EventBus.on(EVENT_KEYS.AUDIO_PLAY, (p: any) => this.play(p?.key, p?.options)));
     this._unbinds.push(
-      EventBus.on('audio:toggleMaster', async () => {
+      EventBus.on(EVENT_KEYS.AUDIO_TOGGLE_MASTER, async () => {
         const enabled = await this.toggleMaster();
-        EventBus.emit('audio:toggled', { enabled });
+        EventBus.emit(EVENT_KEYS.AUDIO_TOGGLED, { enabled });
       })
     );
-    this._unbinds.push(EventBus.on('audio:setBusy', (v: any) => this.setBusy(Boolean(v))));
-    this._unbinds.push(EventBus.on('audio:injectEnginePower', (v: number) => this.injectEnginePower(v)));
-    this._unbinds.push(EventBus.on('audio:updateSpatialPosition', (p: any) => this.updateSpatialPosition(p?.x, p?.y)));
-    this._unbinds.push(EventBus.on('audio:resetIdleTimer', () => this.resetIdleTimer()));
-    this._unbinds.push(EventBus.on('audio:setEnabled', (enabled: boolean) => this.setEnabled(enabled)));
+    this._unbinds.push(EventBus.on(EVENT_KEYS.AUDIO_SET_BUSY, (v: any) => this.setBusy(Boolean(v))));
+    this._unbinds.push(EventBus.on(EVENT_KEYS.AUDIO_INJECT_ENGINE_POWER, (v: number) => this.injectEnginePower(v)));
     this._unbinds.push(
-      EventBus.on('powerSaving:changed', ({ enabled }: any) => {
+      EventBus.on(EVENT_KEYS.AUDIO_UPDATE_SPATIAL_POSITION, (p: any) => this.updateSpatialPosition(p?.x, p?.y))
+    );
+    this._unbinds.push(EventBus.on(EVENT_KEYS.AUDIO_RESET_IDLE_TIMER, () => this.resetIdleTimer()));
+    this._unbinds.push(EventBus.on(EVENT_KEYS.AUDIO_SET_ENABLED, (enabled: boolean) => this.setEnabled(enabled)));
+    this._unbinds.push(
+      EventBus.on(EVENT_KEYS.POWER_SAVING_CHANGED, ({ enabled }: any) => {
         this.setEnabled(!enabled);
       })
     );
@@ -133,7 +136,7 @@ export default class GalacticAudio {
     }
     this.enabled = !this.enabled;
     try {
-      localStorage.setItem('audio_enabled', String(this.enabled));
+      localStorage.setItem(STORAGE_KEYS.AUDIO_ENABLED, String(this.enabled));
     } catch (e) {}
 
     if (this.enabled) {
@@ -154,7 +157,7 @@ export default class GalacticAudio {
       this._ambientSources.clear();
       clearTimeout(this.idleTimer);
     }
-    EventBus.emit('audio:toggled', { enabled: this.enabled });
+    EventBus.emit(EVENT_KEYS.AUDIO_TOGGLED, { enabled: this.enabled });
     return this.enabled;
   }
 

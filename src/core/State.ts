@@ -1,4 +1,5 @@
 import bus from './EventBus';
+import { EVENT_KEYS } from './Keys';
 
 export interface GlobalStateShape {
   isWarping: boolean;
@@ -16,7 +17,7 @@ export const GlobalState: GlobalStateShape = {
 
   setWarping(val: boolean) {
     this.isWarping = val;
-    bus.emit('state:warp', val);
+    bus.emit(EVENT_KEYS.STATE_WARP, val);
   },
 };
 

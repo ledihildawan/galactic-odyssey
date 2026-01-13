@@ -1,3 +1,4 @@
+import { EVENT_KEYS } from '../core/Keys';
 import { fs, vs } from './shaders/particle';
 
 interface Particle {
@@ -34,7 +35,7 @@ export default class ParticleEngine {
     this.animationsEnabled = true;
     this.init();
     import('../core/EventBus').then(({ default: EventBus }) => {
-      EventBus.on('animation:setEnabled', (enabled: boolean) => {
+      EventBus.on(EVENT_KEYS.ANIMATION_SET_ENABLED, (enabled: boolean) => {
         this.animationsEnabled = enabled;
         if (!enabled) {
           this.particles = [];

@@ -1,5 +1,6 @@
 import { OdysseyConfig } from '../core/Config';
 import EventBus from '../core/EventBus';
+import { EVENT_KEYS, STORAGE_KEYS } from '../core/Keys';
 import { showToast } from '../ui/Toast';
 import { setCSS } from '../utils/domUtils';
 import { debounce } from '../utils/functionUtils';
@@ -24,11 +25,11 @@ export default class GridArchitect {
   static shortcutMap: Record<string, (e: KeyboardEvent | any, self: GridArchitect) => void> = {
     'ctrl+t': (e, self) => {
       e.preventDefault();
-      EventBus.emit('audio:play', { key: 'theme' });
+      EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'theme' });
       self._toggleTheme();
     },
     m: (e, self) => {
-      EventBus.emit('audio:toggleMaster');
+      EventBus.emit(EVENT_KEYS.AUDIO_TOGGLE_MASTER);
     },
     home: (e, self) => {
       e.preventDefault();
@@ -58,12 +59,12 @@ export default class GridArchitect {
 
     this._loadState();
 
-    EventBus.on('audio:toggled', (p: any = {}) => {
+    EventBus.on(EVENT_KEYS.AUDIO_TOGGLED, (p: any = {}) => {
       showToast(p.enabled ? 'Ion Drive System Online' : 'Audio Systems Disabled');
       this._saveState();
     });
 
-    EventBus.on('animation:setEnabled', (enabled: boolean) => {
+    EventBus.on(EVENT_KEYS.ANIMATION_SET_ENABLED, (enabled: boolean) => {
       this.animationsEnabled = enabled;
       if (enabled) {
         this._cursorLoop();
@@ -74,7 +75,7 @@ export default class GridArchitect {
   }
 
   private _loadState() {
-    const saved = localStorage.getItem('odyssey_state');
+    const saved = localStorage.getItem(STORAGE_KEYS.ODYSSEY_STATE);
     if (saved) {
       try {
         const state = JSON.parse(saved);
@@ -82,7 +83,7 @@ export default class GridArchitect {
         if (state.scrollPosition) {
           this.startY = state.scrollPosition;
         }
-        EventBus.emit('state:restored', state);
+        EventBus.emit(EVENT_KEYS.STATE_RESTORED, state);
       } catch (e) {
         showToast('System State Restoration Failed', 2000);
       }
@@ -91,7 +92,7 @@ export default class GridArchitect {
 
   private _saveState() {
     try {
-      const audioEnabled = localStorage.getItem('audio_enabled') !== 'false';
+      const audioEnabled = localStorage.getItem(STORAGE_KEYS.AUDIO_ENABLED) !== 'false';
       const state = {
         theme: document.documentElement.getAttribute('data-theme'),
         isRandomMode: this._isRandomMode,
@@ -99,8 +100,8 @@ export default class GridArchitect {
         audioEnabled,
         lastVisit: new Date().toISOString(),
       };
-      localStorage.setItem('odyssey_state', JSON.stringify(state));
-      EventBus.emit('state:saved', state);
+      localStorage.setItem(STORAGE_KEYS.ODYSSEY_STATE, JSON.stringify(state));
+      EventBus.emit(EVENT_KEYS.STATE_SAVED, state);
     } catch (e) {
       showToast('System State Backup Failed', 2000);
     }
@@ -119,12 +120,12 @@ export default class GridArchitect {
       (document.getElementById('load-status') as HTMLElement).innerText = s.t;
     }
     this._init();
-    EventBus.emit('app:booted', { architect: this });
+    EventBus.emit(EVENT_KEYS.APP_BOOTED, { architect: this });
     setTimeout(() => document.getElementById('loading-screen')!.classList.add('hidden'), 600);
   }
 
   private _init() {
-    this._applyTheme(localStorage.getItem('theme') || 'dark');
+    this._applyTheme(localStorage.getItem(STORAGE_KEYS.THEME) || 'dark');
     this._canvas.style.height = `${this.totalYears * this.yearHeight}px`;
     this._viewport.scrollTop = this.startY;
 
@@ -173,15 +174,15 @@ export default class GridArchitect {
 
   private _lockInteractions() {
     this._isInteractingAllowed = false;
-    EventBus.emit('audio:setBusy', true);
     this._viewport.classList.add('is-locked');
     this._setIonGlow('200px');
+    EventBus.emit(EVENT_KEYS.AUDIO_SET_BUSY, true);
   }
 
   private _unlockInteractions() {
     setTimeout(() => {
       this._isInteractingAllowed = true;
-      EventBus.emit('audio:setBusy', false);
+      EventBus.emit(EVENT_KEYS.AUDIO_SET_BUSY, false);
       this._viewport.classList.remove('is-locked');
       this._setIonGlow('700px');
     }, 400);
@@ -197,23 +198,23 @@ export default class GridArchitect {
     const distance = Math.abs(targetYear - currentYear);
     this._isWarping = true;
     this._lockInteractions();
-    EventBus.emit('nav:warp:start', { currentYear, targetYear, distance, isInitial });
+    EventBus.emit(EVENT_KEYS.NAV_WARP_START, { currentYear, targetYear, distance, isInitial });
     this._ionDrive.classList.add('jumping');
     let warpClass = '';
     let duration = OdysseyConfig.display.warpDuration;
     if (distance > 20) {
       warpClass = 'warping-far';
-      EventBus.emit('audio:play', { key: 'jump', options: { volume: 0.8 } });
+      EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'jump', options: { volume: 0.8 } });
       duration = 1800;
       for (let i = 0; i < 15; i++) {
         this._particles.spawn(this._current.x, this._current.y, false);
       }
     } else if (distance >= 2) {
       warpClass = 'warping-near';
-      EventBus.emit('audio:play', { key: 'warp', options: { volume: 0.5 } });
+      EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'warp', options: { volume: 0.5 } });
       duration = 1200;
     } else {
-      EventBus.emit('audio:play', { key: 'scroll' });
+      EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'scroll' });
     }
     if (warpClass) this._viewport.classList.add(warpClass);
     this._viewport.style.scrollBehavior = 'smooth';
@@ -234,9 +235,9 @@ export default class GridArchitect {
           c = b.querySelector('.grid-container') as HTMLElement | null;
         if (t && c) c.scrollTo({ top: t.offsetTop - window.innerHeight / 3, behavior: 'smooth' });
       }
-      EventBus.emit('audio:play', { key: 'beep' });
+      EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'beep' });
       this._isWarping = false;
-      EventBus.emit('nav:warp:end', { targetYear, duration });
+      EventBus.emit(EVENT_KEYS.NAV_WARP_END, { targetYear, duration });
       this._unlockInteractions();
     }, duration);
   }
@@ -253,10 +254,10 @@ export default class GridArchitect {
         if (velocity > OdysseyConfig.physics.exhaustThreshold) {
           this._particles.spawn(e.clientX, e.clientY, true);
         }
-        EventBus.emit('audio:injectEnginePower', velocity);
-        EventBus.emit('input:pointerMove', { x: e.clientX, y: e.clientY, velocity });
+        EventBus.emit(EVENT_KEYS.AUDIO_INJECT_ENGINE_POWER, velocity);
+        EventBus.emit(EVENT_KEYS.INPUT_POINTER_MOVE, { x: e.clientX, y: e.clientY, velocity });
         this._lastMouse = { x: e.clientX, y: e.clientY };
-        EventBus.emit('audio:resetIdleTimer');
+        EventBus.emit(EVENT_KEYS.AUDIO_RESET_IDLE_TIMER);
       },
       { passive: true }
     );
@@ -270,11 +271,11 @@ export default class GridArchitect {
           const isF = cell.classList.contains('filler');
           this._ionDrive.classList.add('active');
           this._setIonGlow(isF ? '200px' : '900px');
-          EventBus.emit('audio:play', {
+          EventBus.emit(EVENT_KEYS.AUDIO_PLAY, {
             key: 'hover',
             options: { volume: isF ? 0.04 : 0.25, playbackRate: isF ? 0.5 : 1.0 },
           });
-          EventBus.emit('input:hover', { filler: isF });
+          EventBus.emit(EVENT_KEYS.INPUT_HOVER, { filler: isF });
         }
       },
       { passive: true }
@@ -294,7 +295,7 @@ export default class GridArchitect {
     const handleScrollEnd = debounce(() => {
       this._isScrolling = false;
       this._unlockInteractions();
-      EventBus.emit('nav:scroll:end', { top: this._viewport.scrollTop });
+      EventBus.emit(EVENT_KEYS.NAV_SCROLL_END, { top: this._viewport.scrollTop });
       setCSS(document.documentElement, { '--chroma-dist': 0 });
     }, 150);
 
@@ -303,8 +304,8 @@ export default class GridArchitect {
       () => {
         if (!this._isScrolling) {
           this._lockInteractions();
-          EventBus.emit('nav:scroll:start', { top: this._viewport.scrollTop });
-          EventBus.emit('audio:play', { key: 'scroll' });
+          EventBus.emit(EVENT_KEYS.NAV_SCROLL_START, { top: this._viewport.scrollTop });
+          EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'scroll' });
         }
         this._isScrolling = true;
         if (!this.ticking) {
@@ -336,8 +337,8 @@ export default class GridArchitect {
     document.addEventListener('click', (e: MouseEvent) => {
       if (!this._isInteractingAllowed) return;
       this._particles.spawn((e as MouseEvent).clientX, (e as MouseEvent).clientY, false);
-      EventBus.emit('audio:play', { key: 'beep', options: { volume: 0.15 } });
-      EventBus.emit('input:click', { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY });
+      EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'beep', options: { volume: 0.15 } });
+      EventBus.emit(EVENT_KEYS.INPUT_CLICK, { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY });
     });
 
     window.addEventListener('resize', () => {
@@ -355,7 +356,7 @@ export default class GridArchitect {
     this._current.y += (this._mouse.y - this._current.y) * OdysseyConfig.physics.cursorInertia;
     document.documentElement.style.setProperty('--ion-x', String(this._current.x));
     document.documentElement.style.setProperty('--ion-y', String(this._current.y));
-    EventBus.emit('audio:updateSpatialPosition', { x: this._current.x, y: this._current.y });
+    EventBus.emit(EVENT_KEYS.AUDIO_UPDATE_SPATIAL_POSITION, { x: this._current.x, y: this._current.y });
     requestAnimationFrame(() => this._cursorLoop());
   }
 
@@ -446,8 +447,8 @@ export default class GridArchitect {
     this._activeYears.clear();
     this._render();
     this._saveState();
-    EventBus.emit('audio:play', { key: 'beep' });
-    EventBus.emit('nav:modeChanged', { isRandomMode: r });
+    EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'beep' });
+    EventBus.emit(EVENT_KEYS.NAV_MODE_CHANGED, { isRandomMode: r });
     showToast(r ? 'Randomized Navigation Mode Activated' : 'Chronological Calendar Mode Activated');
   }
 
@@ -463,7 +464,7 @@ export default class GridArchitect {
       const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
       this._applyTheme(next);
       localStorage.setItem('theme', next);
-      EventBus.emit('ui:themeChanged', { theme: next });
+      EventBus.emit(EVENT_KEYS.UI_THEME_CHANGED, { theme: next });
       this._saveState();
       setTimeout(() => v.classList.remove('active'), 200);
     }, 400);

@@ -1,4 +1,5 @@
 import EventBus from '../core/EventBus';
+import { EVENT_KEYS } from '../core/Keys';
 import { debounce } from '../utils/functionUtils';
 
 const _display = debounce((msg: string, timeout = 2500) => {
@@ -10,11 +11,11 @@ const _display = debounce((msg: string, timeout = 2500) => {
   (t as any)._toastTimer = setTimeout(() => t.classList.remove('active'), timeout);
 }, 50);
 
-EventBus.on('toast:show', (payload: any = {}) => {
+EventBus.on(EVENT_KEYS.TOAST_SHOW, (payload: any = {}) => {
   const { msg, timeout } = typeof payload === 'string' ? { msg: payload } : payload;
   if (msg) _display(msg, timeout);
 });
 
 export function showToast(msg: string, timeout = 2500) {
-  EventBus.emit('toast:show', { msg, timeout });
+  EventBus.emit(EVENT_KEYS.TOAST_SHOW, { msg, timeout });
 }
