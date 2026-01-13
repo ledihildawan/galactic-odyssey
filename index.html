@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Galactic Odyssey</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="src/ui/Styles/core.css" />
+  </head>
+  <body oncontextmenu="return false;">
+    <div id="loading-screen">
+      <div class="loader-bar"><div class="loader-progress" id="load-progress"></div></div>
+      <div class="loader-text" id="load-status">Preparing Expedition Systems</div>
+    </div>
+    <div id="ion-drive"></div>
+    <div id="atmosphere"></div>
+    <div id="theme-veil"></div>
+    <div id="toast">Systems Ready</div>
+    <main id="viewport"><div id="infinite-canvas"></div></main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

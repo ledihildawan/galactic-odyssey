@@ -1,0 +1,575 @@
+/* ============================================
+   GALACTIC ODYSSEY - CORE CSS ENGINE
+   ============================================ */
+
+/* ============================================
+   1. CSS CUSTOM PROPERTIES (Houdini API)
+   ============================================ */
+@property --ion-x {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+@property --ion-y {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+@property --warp-scale {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0.92;
+}
+@property --ion-glow {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 700px;
+}
+@property --chroma-dist {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
+/* ============================================
+   2. CSS VARIABLES & THEMING
+   ============================================ */
+:root {
+  /* Color Palette */
+  --accent-primary: light-dark(#4338ca, #fbbf24);
+  --accent-secondary: light-dark(#0369a1, #22d3ee);
+  --today-glow: light-dark(rgba(67, 56, 202, 0.3), rgba(59, 130, 246, 0.6));
+  --bg: light-dark(#f8fafc, #020617);
+  --bg-dark: #020617;
+  --border: light-dark(#e2e8f0, #1e293b);
+  --cell-bg: light-dark(#ffffff, #020617);
+  --text-main: light-dark(#0f172a, #f1f5f9);
+  --text-muted: light-dark(#475569, #64748b);
+  --white: #ffffff;
+  --black: #000000;
+
+  /* Today Cell Colors */
+  --today-gradient-start: #2563eb;
+  --today-gradient-end: #1e40af;
+
+  /* Overlay & Effect Colors */
+  --cyan-overlay: rgba(34, 211, 238, 0.03);
+  --cyan-overlay-strong: rgba(34, 211, 238, 0.08);
+  --cyan-overlay-border: rgba(34, 211, 238, 0.2);
+  --cyan-overlay-border-strong: rgba(34, 211, 238, 0.3);
+  --amber-overlay: rgba(251, 191, 36, 0.05);
+  --toast-bg: rgba(15, 23, 42, 0.8);
+  --watermark-stroke: rgba(148, 163, 184, 0.1);
+
+  /* White Variants */
+  --white-20: rgba(255, 255, 255, 0.2);
+  --white-90: rgba(255, 255, 255, 0.9);
+
+  /* Black Variants */
+  --black-30: rgba(0, 0, 0, 0.3);
+  --black-60: rgba(0, 0, 0, 0.6);
+
+  /* Chromatic Aberration */
+  --chroma-red: rgba(255, 0, 0, 0.2);
+  --chroma-cyan: rgba(0, 255, 255, 0.2);
+
+  /* Dust & Ion Effects */
+  --dust-opacity: light-dark(0.04, 0.12);
+  --ion-primary: var(--accent-primary);
+  --ion-secondary: var(--accent-secondary);
+  --ion-blend: light-dark(multiply, screen);
+  --ion-opacity: light-dark(0.4, 0.85);
+
+  /* Z-Index Layers */
+  --z-ion: 5;
+  --z-atmosphere: 6;
+  --z-grid: 2;
+  --z-watermark: 10;
+  --z-cell-today: 10;
+  --z-cell-effect: 3;
+  --z-theme-veil: 9999;
+  --z-toast: 99999;
+  --z-loading: 100000;
+
+  /* Spacing & Sizing */
+  --perspective: 2000px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 20px;
+  --space-xl: 28px;
+  --space-2xl: 30px;
+  --space-3xl: 40px;
+
+  /* Border & Effects */
+  --border-width: 0.5px;
+  --border-width-strong: 1px;
+  --border-width-medium: 2px;
+  --border-radius-pill: 40px;
+
+  /* Loading Screen */
+  --loader-width: 150px;
+  --loader-height: 1px;
+
+  /* Font Sizes */
+  --font-micro: 6px;
+  --font-tiny: 8px;
+  --font-xs: 10px;
+  --font-sm: 14px;
+  --font-lg: 22px;
+  --font-watermark-min: 100px;
+  --font-watermark-max: 400px;
+
+  /* Opacity Values */
+  --opacity-hidden: 0;
+  --opacity-subtle: 0.08;
+  --opacity-faint: 0.15;
+  --opacity-light: 0.2;
+  --opacity-medium: 0.3;
+  --opacity-half: 0.5;
+  --opacity-visible: 1;
+
+  /* Transform & Animation */
+  --scale-inactive: 0.8;
+  --scale-active: 1;
+  --scale-warp-far: 1.4;
+  --scale-warp-near: 1.05;
+  --translate-z-inactive: -600px;
+  --translate-z-active: 0px;
+
+  /* Blur Values */
+  --blur-none: 0px;
+  --blur-subtle: 10px;
+  --blur-medium: 20px;
+  --blur-strong: 40px;
+  --blur-extreme: 100px;
+
+  /* Timing Functions */
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-warp: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-snap: cubic-bezier(0.19, 1, 0.22, 1);
+
+  /* Duration */
+  --duration-fast: 0.3s;
+  --duration-medium: 0.4s;
+  --duration-normal: 0.5s;
+  --duration-slow: 0.6s;
+  --duration-slower: 0.8s;
+  --duration-slowest: 1s;
+  --duration-smooth: 1.2s;
+  --duration-very-slow: 1.5s;
+  --duration-ultra-slow: 1.8s;
+  --duration-drift: 60s;
+
+  /* Grid & Layout */
+  --grid-offset: -0.5px;
+  --grid-width: 100.1%;
+
+  /* Shadow & Glow */
+  --shadow-today: 0 10px 30px -5px var(--today-glow);
+  --shadow-toast: 0 15px 40px var(--black-60);
+  --glow-text-today: 0 2px 10px var(--black-30);
+}
+
+/* ============================================
+   3. GLOBAL RESETS & BASE STYLES
+   ============================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ============================================
+   4. HTML & BODY
+   ============================================ */
+html,
+body {
+  height: 100dvh;
+  width: 100vw;
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: 'Space Grotesk', sans-serif;
+  overflow: hidden;
+  perspective: var(--perspective);
+  overscroll-behavior: none;
+  contain: strict;
+}
+
+/* ============================================
+   5. LOADING SCREEN
+   ============================================ */
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-loading);
+  background: light-dark(#f8fafc, #020617);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--duration-slow) ease-out, visibility var(--duration-slow);
+}
+#loading-screen.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+.loader-text {
+  color: light-dark(#0369a1, #22d3ee);
+  font-size: var(--font-xs);
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  font-weight: 900;
+  margin-top: var(--space-lg);
+  text-align: center;
+}
+.loader-bar {
+  width: var(--loader-width);
+  height: var(--loader-height);
+  background: light-dark(#e2e8f0, rgba(34, 211, 238, 0.2));
+  position: relative;
+  overflow: hidden;
+}
+.loader-progress {
+  position: absolute;
+  height: 100%;
+  width: var(--opacity-hidden);
+  background: var(--accent-secondary);
+}
+
+/* ============================================
+   6. ION DRIVE & ATMOSPHERIC EFFECTS
+   ============================================ */
+#ion-drive {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-ion);
+  pointer-events: none;
+  background: radial-gradient(
+      var(--ion-glow) circle at calc(var(--ion-x) * 1px) calc(var(--ion-y) * 1px),
+      color-mix(in srgb, var(--ion-secondary) 15%, transparent) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      50px circle at calc(var(--ion-x) * 1px) calc(var(--ion-y) * 1px),
+      color-mix(in srgb, var(--ion-primary) 60%, transparent) 0%,
+      transparent 100%
+    );
+  opacity: var(--ion-opacity);
+  mix-blend-mode: var(--ion-blend);
+  transition: opacity var(--duration-normal) ease, background var(--duration-fast) ease,
+    --ion-glow var(--duration-slow) var(--ease-warp);
+  will-change: transform;
+  transform: translateZ(0);
+}
+#atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-atmosphere);
+  pointer-events: none;
+  opacity: var(--dust-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  animation: drift var(--duration-drift) linear infinite;
+}
+@keyframes drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 400px 400px;
+  }
+}
+
+/* ============================================
+   7. VIEWPORT & INFINITE CANVAS
+   ============================================ */
+#viewport {
+  width: 100vw;
+  height: 100dvh;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+#viewport.is-locked {
+  pointer-events: none !important;
+}
+#infinite-canvas {
+  position: relative;
+  width: 100%;
+  contain: layout;
+}
+
+/* ============================================
+   8. YEAR BLOCKS & NAVIGATION
+   ============================================ */
+.year-block {
+  position: absolute;
+  left: 0;
+  width: 100vw;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: 100vw 100dvh;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  transform-origin: center center;
+  transition: transform var(--duration-slowest) var(--ease-smooth), filter var(--duration-slowest) ease,
+    opacity var(--duration-slower) ease;
+  will-change: transform, opacity, filter;
+  contain: strict;
+}
+.year-block:not(.active) {
+  transform: scale(var(--scale-inactive)) translate3d(0, 0, var(--translate-z-inactive));
+  filter: blur(var(--blur-medium)) grayscale(var(--opacity-half));
+  opacity: var(--opacity-faint);
+}
+.year-block:not(.active) .date-num {
+  background: var(--text-muted);
+  color: transparent !important;
+  height: var(--loader-height);
+  width: 40%;
+  margin: var(--space-xs) auto;
+  opacity: var(--opacity-half);
+}
+.year-block:not(.active) .info-meta {
+  opacity: 0;
+}
+
+/* ============================================
+   9. GRID SYSTEM & LAYOUT
+   ============================================ */
+.year-block.active {
+  transform: scale(var(--scale-active)) translate3d(0, 0, var(--translate-z-active));
+  filter: blur(var(--blur-none));
+  opacity: var(--opacity-visible);
+}
+
+.grid-container {
+  position: relative;
+  flex: 1;
+  display: flex;
+  background: var(--bg);
+  overflow-x: hidden;
+  scrollbar-width: none;
+  filter: drop-shadow(calc(var(--chroma-dist) * -1px) 0 0 var(--chroma-red))
+    drop-shadow(calc(var(--chroma-dist) * 1px) 0 0 var(--chroma-cyan));
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  will-change: transform, filter;
+}
+.watermark-embedded {
+  position: absolute;
+  top: 0;
+  right: 5%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-size: clamp(var(--font-watermark-min), 30dvh, var(--font-watermark-max));
+  font-weight: 900;
+  color: transparent;
+  background: linear-gradient(180deg, var(--accent-primary), var(--accent-secondary), transparent);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-stroke: var(--border-width-strong) var(--watermark-stroke);
+  writing-mode: vertical-rl;
+  pointer-events: none;
+  opacity: var(--opacity-hidden);
+  z-index: var(--z-watermark);
+  transition: opacity var(--duration-slowest), transform var(--duration-very-slow) var(--ease-smooth);
+  will-change: transform;
+}
+.year-block.active .watermark-embedded {
+  opacity: var(--opacity-faint);
+  transform: translate3d(0, 0, var(--translate-z-active));
+}
+.year-block.is-scrolling .watermark-embedded {
+  position: fixed;
+  opacity: var(--opacity-subtle);
+}
+.grid-layer {
+  display: grid;
+  width: var(--grid-width);
+  margin-left: var(--grid-offset);
+  min-height: 100%;
+  opacity: var(--opacity-hidden);
+  transition: opacity var(--duration-slower) ease;
+  z-index: var(--z-grid);
+  gap: 0;
+  background: transparent;
+}
+.year-block.active .grid-layer {
+  opacity: var(--opacity-visible);
+}
+
+/* ============================================
+   10. CELL STYLES & VARIANTS
+   ============================================ */
+.cell {
+  background: var(--cell-bg);
+  position: relative;
+  box-shadow: inset 0 0 0 var(--border-width) var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: background var(--duration-medium) ease, opacity var(--duration-medium) ease;
+  contain: content;
+}
+.cell.filler {
+  opacity: var(--opacity-faint);
+  background: transparent;
+  pointer-events: auto;
+}
+.cell.weekend {
+  background: linear-gradient(135deg, var(--cyan-overlay) 0%, transparent 100%);
+}
+.cell.week-start {
+  background: linear-gradient(135deg, var(--amber-overlay) 0%, transparent 100%);
+}
+.cell.week-start::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--border-width-medium);
+  background: linear-gradient(90deg, var(--accent-primary), transparent);
+  opacity: var(--opacity-light);
+  z-index: var(--z-cell-effect);
+}
+.cell.month-start {
+  background: linear-gradient(180deg, var(--cyan-overlay-strong) 0%, transparent 100%);
+  box-shadow: inset 0 var(--border-width-medium) 0 0 var(--accent-secondary),
+    inset 0 0 0 var(--border-width) var(--border);
+}
+.cell.month-start .info-meta.top-label {
+  color: var(--accent-secondary);
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+.cell.today {
+  background: linear-gradient(135deg, var(--today-gradient-start) 0%, var(--today-gradient-end) 100%);
+  z-index: var(--z-cell-today);
+  box-shadow: var(--shadow-today), inset 0 0 0 var(--border-width-strong) var(--white-20);
+}
+.cell.today .date-num {
+  font-weight: 900;
+  color: var(--white) !important;
+  text-shadow: var(--glow-text-today);
+}
+.cell.today .info-meta {
+  color: var(--white-90);
+  font-weight: 700;
+}
+.cell-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-xs);
+  z-index: var(--z-grid);
+  pointer-events: none;
+}
+.info-meta {
+  font-size: clamp(var(--font-micro), 0.8dvh, var(--font-tiny));
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  transition: opacity var(--duration-medium) ease;
+}
+
+/* ============================================
+   11. UI COMPONENTS (Toast, Theme Veil)
+   ============================================ */
+.date-num {
+  font-size: clamp(var(--font-sm), 2.5dvh, var(--font-lg));
+  font-weight: 300;
+  line-height: 1;
+  color: var(--text-main);
+  transition: all var(--duration-medium) ease;
+}
+#toast {
+  position: fixed;
+  bottom: var(--space-2xl);
+  left: 50%;
+  transform: translateX(-50%) translateY(var(--space-lg));
+  background: var(--toast-bg);
+  color: var(--accent-secondary);
+  backdrop-filter: blur(var(--blur-medium)) saturate(180%);
+  padding: var(--space-md) var(--space-xl);
+  border-radius: var(--border-radius-pill);
+  font-weight: 900;
+  font-size: var(--font-xs);
+  z-index: var(--z-toast);
+  opacity: var(--opacity-hidden);
+  border: var(--border-width-strong) solid var(--cyan-overlay-border-strong);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  transition: all var(--duration-slow) var(--ease-bounce);
+  pointer-events: none;
+  box-shadow: var(--shadow-toast);
+}
+#toast.active {
+  opacity: var(--opacity-visible);
+  transform: translateX(-50%) translateY(var(--translate-z-active));
+}
+#theme-veil {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-theme-veil);
+  background: var(--bg);
+  pointer-events: none;
+  opacity: var(--opacity-hidden);
+  transition: opacity var(--duration-normal);
+}
+#theme-veil.active {
+  opacity: var(--opacity-visible);
+}
+
+/* ============================================
+   12. WARP EFFECTS & TRANSITIONS
+   ============================================ */
+#viewport.warping-far .year-block {
+  filter: blur(var(--blur-extreme)) saturate(2);
+  opacity: var(--opacity-hidden);
+  transition: all var(--duration-slower) var(--ease-smooth);
+}
+#viewport.warping-far #infinite-canvas {
+  transform: scale(var(--scale-warp-far)) translateZ(var(--translate-z-active));
+  filter: blur(var(--blur-strong)) brightness(1.5) contrast(1.2);
+  transition: transform var(--duration-ultra-slow) var(--ease-smooth), filter var(--duration-smooth) ease-in-out;
+
+  opacity: var(--opacity-medium);
+}
+#viewport.warping-near #infinite-canvas {
+  transform: scale(var(--scale-warp-near)) translateZ(var(--translate-z-active));
+  filter: blur(var(--blur-subtle));
+  transition: transform var(--duration-smooth) ease-out, filter var(--duration-slower) ease-out;
+}
+#ion-drive.jumping {
+  opacity: var(--opacity-hidden) !important;
+  transform: scale(var(--opacity-hidden)) translateZ(var(--translate-z-active));
+  transition: opacity var(--duration-medium) ease-out, transform var(--duration-slow) var(--ease-snap);
+}
+
+/* ============================================
+   13. MEDIA QUERIES
+   ============================================ */
+@media (pointer: fine) {
+  * {
+    cursor: none !important;
+  }
+}
