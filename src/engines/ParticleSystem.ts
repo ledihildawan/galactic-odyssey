@@ -105,8 +105,10 @@ export default class ParticleEngine {
   resize() {
     if (!this.animationsEnabled) return;
     const dpr = Math.min(window.devicePixelRatio, 2);
-    this.canvas.width = window.innerWidth * dpr;
-    this.canvas.height = window.innerHeight * dpr;
+    this.canvas.width = Math.round(window.innerWidth * dpr);
+    this.canvas.height = Math.round(window.innerHeight * dpr);
+    this.canvas.style.width = `${window.innerWidth}px`;
+    this.canvas.style.height = `${window.innerHeight}px`;
     if (this.gl) this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
   }
 
