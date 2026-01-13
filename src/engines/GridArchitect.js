@@ -7,6 +7,32 @@ import ParticleEngine from './ParticleSystem.js';
 
 export default class GridArchitect {
   #activeYears = new Map();
+  // General shortcut map for key bindings
+  static shortcutMap = {
+    // Theme toggle: Ctrl+T (common for toggling themes)
+    'ctrl+t'(e, self) {
+      e.preventDefault();
+      EventBus.emit('audio:play', { key: 'theme' });
+      self.#toggleTheme();
+    },
+    // Audio mute/unmute: M (common for mute)
+    m(e, self) {
+      EventBus.emit('audio:toggleMaster');
+    },
+    // Jump to today: Home (common for navigation to start)
+    home(e, self) {
+      e.preventDefault();
+      self.jumpToToday();
+    },
+    // Random mode: R (random)
+    r(e, self) {
+      self.#setMode(true);
+    },
+    // Sequential/chronological mode: C (chronological)
+    c(e, self) {
+      self.#setMode(false);
+    },
+  };
   #today = new Date();
   // audio handled via EventBus
   #particles = new ParticleEngine();
@@ -51,6 +77,7 @@ export default class GridArchitect {
         }
         // Don't auto-restore audio state due to browser autoplay policy
         // User must manually enable audio via interaction
+        EventBus.emit('state:restored', state);
       } catch (e) {
         showToast('System State Restoration Failed', 2000);
       }
@@ -69,6 +96,7 @@ export default class GridArchitect {
         lastVisit: new Date().toISOString(),
       };
       localStorage.setItem('odyssey_state', JSON.stringify(state));
+      EventBus.emit('state:saved', state);
     } catch (e) {
       showToast('System State Backup Failed', 2000);
     }
@@ -147,29 +175,37 @@ export default class GridArchitect {
 
   // toasts are handled via EventBus -> src/ui/Toast.js
 
+  #setIonGlow(value) {
+    document.documentElement.style.setProperty('--ion-glow', value);
+  }
   #lockInteractions() {
     this.#isInteractingAllowed = false;
     EventBus.emit('audio:setBusy', true);
     this.#viewport.classList.add('is-locked');
-    document.documentElement.style.setProperty('--ion-glow', '200px');
+    this.#setIonGlow('200px');
   }
   #unlockInteractions() {
     setTimeout(() => {
       this.#isInteractingAllowed = true;
       EventBus.emit('audio:setBusy', false);
       this.#viewport.classList.remove('is-locked');
-      document.documentElement.style.setProperty('--ion-glow', '700px');
+      this.#setIonGlow('700px');
     }, 400);
   }
 
   jumpToToday(isInitial = false) {
     if (this.#isWarping) return;
+    const targetYear = this.#today.getFullYear();
+    // Calculate the scroll position for today
+    const todayIdx = targetYear - (targetYear - Math.floor(this.totalYears / 2));
+    const todayScrollTop =
+      (targetYear - (this.#today.getFullYear() - Math.floor(this.totalYears / 2))) * this.yearHeight;
     const currentYear =
       this.#today.getFullYear() + (Math.round(this.#viewport.scrollTop / this.yearHeight) - this.totalYears / 2);
-    const targetYear = this.#today.getFullYear();
     const distance = Math.abs(targetYear - currentYear);
     this.#isWarping = true;
     this.#lockInteractions();
+    EventBus.emit('nav:warp:start', { currentYear, targetYear, distance, isInitial });
     this.#ionDrive.classList.add('jumping');
     let warpClass = '';
     let duration = OdysseyConfig.display.warpDuration;
@@ -189,7 +225,8 @@ export default class GridArchitect {
     }
     if (warpClass) this.#viewport.classList.add(warpClass);
     this.#viewport.style.scrollBehavior = 'smooth';
-    this.#viewport.scrollTo({ top: this.startY, behavior: 'smooth' });
+    // Scroll to the calculated position for today
+    this.#viewport.scrollTo({ top: todayScrollTop, behavior: 'smooth' });
     if (!isInitial)
       showToast(distance > 20 ? 'Initiating Interstellar Jump Sequence' : 'Executing Local Warp Protocol');
     setTimeout(() => {
@@ -208,6 +245,7 @@ export default class GridArchitect {
       }
       EventBus.emit('audio:play', { key: 'beep' });
       this.#isWarping = false;
+      EventBus.emit('nav:warp:end', { targetYear, duration });
       this.#unlockInteractions();
     }, duration);
   }
@@ -225,6 +263,7 @@ export default class GridArchitect {
           this.#particles.spawn(e.clientX, e.clientY, true);
         }
         EventBus.emit('audio:injectEnginePower', velocity);
+        EventBus.emit('input:pointerMove', { x: e.clientX, y: e.clientY, velocity });
         this.#lastMouse = { x: e.clientX, y: e.clientY };
         EventBus.emit('audio:resetIdleTimer');
       },
@@ -239,11 +278,12 @@ export default class GridArchitect {
         if (cell) {
           const isF = cell.classList.contains('filler');
           this.#ionDrive.classList.add('active');
-          document.documentElement.style.setProperty('--ion-glow', isF ? '200px' : '900px');
+          this.#setIonGlow(isF ? '200px' : '900px');
           EventBus.emit('audio:play', {
             key: 'hover',
             options: { volume: isF ? 0.04 : 0.25, playbackRate: isF ? 0.5 : 1.0 },
           });
+          EventBus.emit('input:hover', { filler: isF });
         }
       },
       { passive: true }
@@ -254,7 +294,7 @@ export default class GridArchitect {
       (e) => {
         if (e.target.closest('.cell') && this.#isInteractingAllowed) {
           this.#ionDrive.classList.remove('active');
-          document.documentElement.style.setProperty('--ion-glow', '700px');
+          this.#setIonGlow('700px');
         }
       },
       { passive: true }
@@ -263,6 +303,7 @@ export default class GridArchitect {
     const handleScrollEnd = debounce(() => {
       this.#isScrolling = false;
       this.#unlockInteractions();
+      EventBus.emit('nav:scroll:end', { top: this.#viewport.scrollTop });
       setCSS(document.documentElement, { '--chroma-dist': 0 });
     }, 150);
 
@@ -271,6 +312,7 @@ export default class GridArchitect {
       () => {
         if (!this.#isScrolling) {
           this.#lockInteractions();
+          EventBus.emit('nav:scroll:start', { top: this.#viewport.scrollTop });
           EventBus.emit('audio:play', { key: 'scroll' });
         }
         this.#isScrolling = true;
@@ -294,26 +336,19 @@ export default class GridArchitect {
     );
 
     window.addEventListener('keydown', (e) => {
-      const k = e.key.toLowerCase();
-      if (k === 't') {
-        EventBus.emit('audio:play', { key: 'theme' });
-        this.#toggleTheme();
+      let k = e.key.toLowerCase();
+      if (e.ctrlKey) k = 'ctrl+' + k;
+      const handler = GridArchitect.shortcutMap[k];
+      if (typeof handler === 'function') {
+        handler(e, this);
       }
-      if (k === 'm') {
-        EventBus.emit('audio:toggleMaster');
-      }
-      if (k === ' ') {
-        e.preventDefault();
-        this.jumpToToday();
-      }
-      if (k === 'r') this.#setMode(true);
-      if (k === 's') this.#setMode(false);
     });
 
     document.addEventListener('click', (e) => {
       if (!this.#isInteractingAllowed) return;
       this.#particles.spawn(e.clientX, e.clientY, false);
       EventBus.emit('audio:play', { key: 'beep', options: { volume: 0.15 } });
+      EventBus.emit('input:click', { x: e.clientX, y: e.clientY });
     });
     window.addEventListener('resize', () => {
       this.yearHeight = window.innerHeight;
@@ -417,6 +452,7 @@ export default class GridArchitect {
     this.#render();
     this.#saveState();
     EventBus.emit('audio:play', { key: 'beep' });
+    EventBus.emit('nav:modeChanged', { isRandomMode: r });
     showToast(r ? 'Randomized Navigation Mode Activated' : 'Chronological Calendar Mode Activated');
   }
 
@@ -431,6 +467,7 @@ export default class GridArchitect {
       const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
       this.#applyTheme(next);
       localStorage.setItem('theme', next);
+      EventBus.emit('ui:themeChanged', { theme: next });
       this.#saveState();
       setTimeout(() => v.classList.remove('active'), 200);
     }, 400);
