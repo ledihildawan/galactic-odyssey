@@ -1,10 +1,4 @@
-/**
- * Debounce (ignore all, run the last)
- * https://www.freecodecamp.org/news/javascript-debounce-example/
- * @param func
- * @param timeout
- * @returns {(function(...[*]): void)|*}
- */
+// Debounce: ignore all, run the last
 export function debounce(func, timeout = 150) {
   let timer;
   return (...args) => {
@@ -15,13 +9,7 @@ export function debounce(func, timeout = 150) {
   };
 }
 
-/**
- * Debounce leading (run the first, ignore the rest)
- * https://www.freecodecamp.org/news/javascript-debounce-example/
- * @param func
- * @param timeout
- * @returns {(function(...[*]): void)|*}
- */
+// Debounce leading: run the first, ignore the rest
 export function debounceLeading(func, timeout = 150) {
   let timer;
   return (...args) => {
@@ -35,12 +23,7 @@ export function debounceLeading(func, timeout = 150) {
   };
 }
 
-/**
- * Get array with unique values
- * https://stackoverflow.com/questions/1960473/get-all-unique-values-in-a-javascript-array-remove-duplicates
- * @param array
- * @returns {*}
- */
+// Get array with unique values
 export function arrayUnique(array) {
   function onlyUnique(value, index, self) {
     return self.indexOf(value) === index;
@@ -49,52 +32,31 @@ export function arrayUnique(array) {
   return array.filter(onlyUnique);
 }
 
-/**
- * Sort array of integers
- * @param array
- * @param asc
- * @returns {*}
- */
+// Sort array of integers
 export function arraySortInteger(array, asc = true) {
   return array.sort(function (a, b) {
     return asc ? a - b : b - a;
   });
 }
 
-/**
- * Set CSS
- * @param target
- * @param props
- */
+// Set CSS properties
 export function setCSS(target, props) {
   Object.assign(target.style, props);
 }
 
-/**
- * Console log
- * @param context
- * @param status
- * @param message
- */
+// Console log (dev only)
 export function log(context, status, ...message) {
   if (context.options.dev) {
     console?.[status](...message);
   }
 }
 
-/**
- * Generate unique ID
- */
+// Generate unique ID
 export function uniqueId(prefix = '') {
   return prefix + (+new Date()).toString(16) + ((Math.random() * 100000000) | 0).toString(16);
 }
 
-/**
- * Get element offsets
- * https://github.com/jquery/jquery/blob/d0ce00cdfa680f1f0c38460bc51ea14079ae8b07/src/offset.js#L87
- * @param element : HTMLElement
- * @returns {{top: *, left: *}|{top: number, left: number}}
- */
+// Get element offsets
 export function getOffset(element) {
   if (!element.getClientRects().length) {
     return { top: 0, left: 0 };

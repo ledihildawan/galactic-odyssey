@@ -567,3 +567,23 @@ body {
   transform: scale(var(--opacity-hidden)) translateZ(var(--translate-z-active));
   transition: opacity var(--duration-medium) ease-out, transform var(--duration-slow) var(--ease-snap);
 }
+:root.powersave {
+  --duration-fast: 0s !important;
+  --duration-medium: 0s !important;
+  --duration-normal: 0s !important;
+  --duration-slow: 0s !important;
+  --duration-slower: 0s !important;
+  --duration-slowest: 0s !important;
+  --duration-smooth: 0s !important;
+  --duration-very-slow: 0s !important;
+  --duration-ultra-slow: 0s !important;
+  --duration-drift: 0s !important;
+  animation: none !important;
+}
+
+:root.powersave *,
+:root.powersave *::before,
+:root.powersave *::after {
+  transition: none !important;
+  animation: none !important;
+}

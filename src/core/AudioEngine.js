@@ -18,7 +18,7 @@ export default class GalacticAudio {
     this.idleTimer = null;
     this.#initAudioContext();
 
-    // Subscribe to EventBus so other modules can trigger audio without direct coupling
+    // Subscribe to EventBus for decoupled audio
     this._unbinds = [];
     this._unbinds.push(EventBus.on('audio:play', (p) => this.play(p?.key, p?.options)));
     this._unbinds.push(
@@ -32,6 +32,12 @@ export default class GalacticAudio {
     this._unbinds.push(EventBus.on('audio:updateSpatialPosition', (p) => this.updateSpatialPosition(p?.x, p?.y)));
     this._unbinds.push(EventBus.on('audio:resetIdleTimer', () => this.resetIdleTimer()));
     this._unbinds.push(EventBus.on('audio:setEnabled', (enabled) => this.setEnabled(enabled)));
+    // Listen for power saving mode
+    this._unbinds.push(
+      EventBus.on('powerSaving:changed', ({ enabled }) => {
+        this.setEnabled(!enabled);
+      })
+    );
   }
 
   #initAudioContext() {
@@ -81,7 +87,7 @@ export default class GalacticAudio {
         const buf = await res.arrayBuffer();
         this.#sounds.set(key, await this.#ctx.decodeAudioData(buf));
       } catch (err) {
-        // ignore missing assets during refactor
+        // Ignore missing assets during refactor
       }
     }
   }

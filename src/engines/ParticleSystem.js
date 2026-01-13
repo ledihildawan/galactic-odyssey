@@ -11,7 +11,25 @@ export default class ParticleEngine {
     });
     this.particles = [];
     this.maxParticles = 1200;
+    this.animationsEnabled = true;
     this.init();
+    // Listen for power saving mode
+    import('../core/EventBus.js').then(({ default: EventBus }) => {
+      EventBus.on('animation:setEnabled', (enabled) => {
+        this.animationsEnabled = enabled;
+        if (!enabled) {
+          // Clear all particles and freeze canvas
+          this.particles = [];
+          if (this.gl) {
+            this.gl.clearColor(0, 0, 0, 0);
+            this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+          }
+        } else {
+          // Resume loop if needed
+          this.loop();
+        }
+      });
+    });
   }
 
   getCSSColor(varName) {
@@ -67,6 +85,7 @@ export default class ParticleEngine {
   }
 
   resize() {
+    if (!this.animationsEnabled) return;
     const dpr = Math.min(window.devicePixelRatio, 2);
     this.canvas.width = window.innerWidth * dpr;
     this.canvas.height = window.innerHeight * dpr;
@@ -74,6 +93,7 @@ export default class ParticleEngine {
   }
 
   spawn(x, y, isExhaust = false) {
+    if (!this.animationsEnabled) return;
     const dpr = Math.min(window.devicePixelRatio, 2);
     const count = isExhaust ? 2 : 12;
     let primary = this.getCSSColor('--ion-primary');
@@ -101,6 +121,7 @@ export default class ParticleEngine {
   }
 
   loop() {
+    if (!this.animationsEnabled) return;
     const gl = this.gl;
     if (!gl) return;
     gl.clearColor(0, 0, 0, 0);

@@ -1,4 +1,3 @@
-// Centralized SFX manifest. Change filenames here to swap sounds.
 export default {
   jump: 'jump-to-today.mp3',
   scroll: 'year-change-scroll-transition.mp3',
