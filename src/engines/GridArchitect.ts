@@ -1,0 +1,471 @@
+import { OdysseyConfig } from '../core/Config';
+import EventBus from '../core/EventBus';
+import { showToast } from '../ui/Toast';
+import { setCSS } from '../utils/domUtils';
+import { debounce } from '../utils/functionUtils';
+import ParticleEngine from './ParticleSystem';
+
+export default class GridArchitect {
+  private _activeYears = new Map<number, HTMLElement>();
+  private _today = new Date();
+  private _particles = new ParticleEngine();
+  private _viewport: HTMLElement = document.getElementById('viewport') as HTMLElement;
+  private _canvas: HTMLElement = document.getElementById('infinite-canvas') as HTMLElement;
+  private _ionDrive: HTMLElement = document.getElementById('ion-drive') as HTMLElement;
+  private _lastScrollPos = 0;
+  private _isScrolling = false;
+  private _isWarping = false;
+  private _isInteractingAllowed = true;
+  private _mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  private _current = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  private _lastMouse = { x: 0, y: 0 };
+  private _isRandomMode = OdysseyConfig.display.defaultMode === 'random';
+
+  static shortcutMap: Record<string, (e: KeyboardEvent | any, self: GridArchitect) => void> = {
+    'ctrl+t': (e, self) => {
+      e.preventDefault();
+      EventBus.emit('audio:play', { key: 'theme' });
+      self._toggleTheme();
+    },
+    m: (e, self) => {
+      EventBus.emit('audio:toggleMaster');
+    },
+    home: (e, self) => {
+      e.preventDefault();
+      self.jumpToToday();
+    },
+    r: (e, self) => {
+      self._setMode(true);
+    },
+    c: (e, self) => {
+      self._setMode(false);
+    },
+  };
+
+  totalYears: number;
+  yearHeight: number;
+  startY: number;
+  animationsEnabled: boolean;
+  observer: IntersectionObserver | null = null;
+  ticking = false;
+
+  constructor() {
+    this.totalYears = OdysseyConfig.temporal.totalYears;
+    this.yearHeight = window.innerHeight;
+    this.startY = (this.totalYears / 2) * this.yearHeight;
+
+    this.animationsEnabled = true;
+
+    this._loadState();
+
+    EventBus.on('audio:toggled', (p: any = {}) => {
+      showToast(p.enabled ? 'Ion Drive System Online' : 'Audio Systems Disabled');
+      this._saveState();
+    });
+
+    EventBus.on('animation:setEnabled', (enabled: boolean) => {
+      this.animationsEnabled = enabled;
+      if (enabled) {
+        this._cursorLoop();
+      }
+    });
+
+    this._runBoot();
+  }
+
+  private _loadState() {
+    const saved = localStorage.getItem('odyssey_state');
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        this._isRandomMode = state.isRandomMode ?? this._isRandomMode;
+        if (state.scrollPosition) {
+          this.startY = state.scrollPosition;
+        }
+        EventBus.emit('state:restored', state);
+      } catch (e) {
+        showToast('System State Restoration Failed', 2000);
+      }
+    }
+  }
+
+  private _saveState() {
+    try {
+      const audioEnabled = localStorage.getItem('audio_enabled') !== 'false';
+      const state = {
+        theme: document.documentElement.getAttribute('data-theme'),
+        isRandomMode: this._isRandomMode,
+        scrollPosition: this._viewport?.scrollTop || this.startY,
+        audioEnabled,
+        lastVisit: new Date().toISOString(),
+      };
+      localStorage.setItem('odyssey_state', JSON.stringify(state));
+      EventBus.emit('state:saved', state);
+    } catch (e) {
+      showToast('System State Backup Failed', 2000);
+    }
+  }
+
+  private async _runBoot() {
+    const bar = document.getElementById('load-progress') as HTMLElement;
+    const steps = [
+      { p: 40, t: 'Initializing Navigation Systems' },
+      { p: 80, t: 'Calibrating Audio Processors' },
+      { p: 100, t: 'Systems Ready for Departure' },
+    ];
+    for (const s of steps) {
+      await new Promise((r) => setTimeout(r, 400));
+      bar.style.width = `${s.p}%`;
+      (document.getElementById('load-status') as HTMLElement).innerText = s.t;
+    }
+    this._init();
+    EventBus.emit('app:booted', { architect: this });
+    setTimeout(() => document.getElementById('loading-screen')!.classList.add('hidden'), 600);
+  }
+
+  private _init() {
+    this._applyTheme(localStorage.getItem('theme') || 'dark');
+    this._canvas.style.height = `${this.totalYears * this.yearHeight}px`;
+    this._viewport.scrollTop = this.startY;
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this._saveState();
+    });
+    window.addEventListener('beforeunload', () => this._saveState());
+    setInterval(() => this._saveState(), 30000);
+
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          const b = e.target as HTMLElement;
+          const year = parseInt(b.dataset.year || '0');
+          const wasActive = b.classList.contains('active');
+          b.classList.toggle('active', e.isIntersecting);
+          if (e.isIntersecting && !wasActive && 'vibrate' in navigator) navigator.vibrate?.(8);
+          if (!e.isIntersecting) {
+            const currentIdx = Math.round(this._viewport.scrollTop / this.yearHeight);
+            const currentYear = this._today.getFullYear() + (currentIdx - this.totalYears / 2);
+            if (Math.abs(year - currentYear) > 2) {
+              this._activeYears.delete(year);
+              this.observer!.unobserve(b);
+              b.remove();
+            }
+          }
+          if (e.isIntersecting && this._viewport.scrollTop < this._lastScrollPos) {
+            const c = b.querySelector('.grid-container') as HTMLElement | null;
+            if (c && b.classList.contains('is-scrolling')) c.scrollTop = c.scrollHeight;
+          }
+        });
+        this._lastScrollPos = this._viewport.scrollTop;
+      },
+      { threshold: 0.05, rootMargin: '20% 0px' }
+    );
+
+    this._setupListeners();
+    this._cursorLoop();
+    this._render();
+    setTimeout(() => this.jumpToToday(true), 150);
+  }
+
+  private _setIonGlow(value: string) {
+    document.documentElement.style.setProperty('--ion-glow', value);
+  }
+
+  private _lockInteractions() {
+    this._isInteractingAllowed = false;
+    EventBus.emit('audio:setBusy', true);
+    this._viewport.classList.add('is-locked');
+    this._setIonGlow('200px');
+  }
+
+  private _unlockInteractions() {
+    setTimeout(() => {
+      this._isInteractingAllowed = true;
+      EventBus.emit('audio:setBusy', false);
+      this._viewport.classList.remove('is-locked');
+      this._setIonGlow('700px');
+    }, 400);
+  }
+
+  jumpToToday(isInitial = false) {
+    if (this._isWarping) return;
+    const targetYear = this._today.getFullYear();
+    const todayScrollTop =
+      (targetYear - (this._today.getFullYear() - Math.floor(this.totalYears / 2))) * this.yearHeight;
+    const currentYear =
+      this._today.getFullYear() + (Math.round(this._viewport.scrollTop / this.yearHeight) - this.totalYears / 2);
+    const distance = Math.abs(targetYear - currentYear);
+    this._isWarping = true;
+    this._lockInteractions();
+    EventBus.emit('nav:warp:start', { currentYear, targetYear, distance, isInitial });
+    this._ionDrive.classList.add('jumping');
+    let warpClass = '';
+    let duration = OdysseyConfig.display.warpDuration;
+    if (distance > 20) {
+      warpClass = 'warping-far';
+      EventBus.emit('audio:play', { key: 'jump', options: { volume: 0.8 } });
+      duration = 1800;
+      for (let i = 0; i < 15; i++) {
+        this._particles.spawn(this._current.x, this._current.y, false);
+      }
+    } else if (distance >= 2) {
+      warpClass = 'warping-near';
+      EventBus.emit('audio:play', { key: 'warp', options: { volume: 0.5 } });
+      duration = 1200;
+    } else {
+      EventBus.emit('audio:play', { key: 'scroll' });
+    }
+    if (warpClass) this._viewport.classList.add(warpClass);
+    this._viewport.style.scrollBehavior = 'smooth';
+    this._viewport.scrollTo({ top: todayScrollTop, behavior: 'smooth' });
+    if (!isInitial)
+      showToast(distance > 20 ? 'Initiating Interstellar Jump Sequence' : 'Executing Local Warp Protocol');
+    setTimeout(() => {
+      this._viewport.classList.remove('warping-far', 'warping-near');
+      this._ionDrive.classList.remove('jumping');
+      for (let i = 0; i < 3; i++) {
+        setTimeout(() => {
+          this._particles.spawn(this._current.x, this._current.y, false);
+        }, i * 50);
+      }
+      const b = this._activeYears.get(targetYear);
+      if (b) {
+        const t = b.querySelector('.cell.today') as HTMLElement | null,
+          c = b.querySelector('.grid-container') as HTMLElement | null;
+        if (t && c) c.scrollTo({ top: t.offsetTop - window.innerHeight / 3, behavior: 'smooth' });
+      }
+      EventBus.emit('audio:play', { key: 'beep' });
+      this._isWarping = false;
+      EventBus.emit('nav:warp:end', { targetYear, duration });
+      this._unlockInteractions();
+    }, duration);
+  }
+
+  private _setupListeners() {
+    window.addEventListener(
+      'pointermove',
+      (e: PointerEvent) => {
+        this._mouse.x = e.clientX;
+        this._mouse.y = e.clientY;
+        const velocity = Math.sqrt(
+          Math.pow(e.clientX - this._lastMouse.x, 2) + Math.pow(e.clientY - this._lastMouse.y, 2)
+        );
+        if (velocity > OdysseyConfig.physics.exhaustThreshold) {
+          this._particles.spawn(e.clientX, e.clientY, true);
+        }
+        EventBus.emit('audio:injectEnginePower', velocity);
+        EventBus.emit('input:pointerMove', { x: e.clientX, y: e.clientY, velocity });
+        this._lastMouse = { x: e.clientX, y: e.clientY };
+        EventBus.emit('audio:resetIdleTimer');
+      },
+      { passive: true }
+    );
+
+    document.addEventListener(
+      'mouseover',
+      (e: MouseEvent) => {
+        if (!this._isInteractingAllowed || this._isWarping || this._isScrolling) return;
+        const cell = (e.target as HTMLElement).closest('.cell') as HTMLElement | null;
+        if (cell) {
+          const isF = cell.classList.contains('filler');
+          this._ionDrive.classList.add('active');
+          this._setIonGlow(isF ? '200px' : '900px');
+          EventBus.emit('audio:play', {
+            key: 'hover',
+            options: { volume: isF ? 0.04 : 0.25, playbackRate: isF ? 0.5 : 1.0 },
+          });
+          EventBus.emit('input:hover', { filler: isF });
+        }
+      },
+      { passive: true }
+    );
+
+    document.addEventListener(
+      'mouseout',
+      (e: MouseEvent) => {
+        if ((e.target as HTMLElement).closest('.cell') && this._isInteractingAllowed) {
+          this._ionDrive.classList.remove('active');
+          this._setIonGlow('700px');
+        }
+      },
+      { passive: true }
+    );
+
+    const handleScrollEnd = debounce(() => {
+      this._isScrolling = false;
+      this._unlockInteractions();
+      EventBus.emit('nav:scroll:end', { top: this._viewport.scrollTop });
+      setCSS(document.documentElement, { '--chroma-dist': 0 });
+    }, 150);
+
+    this._viewport.addEventListener(
+      'scroll',
+      () => {
+        if (!this._isScrolling) {
+          this._lockInteractions();
+          EventBus.emit('nav:scroll:start', { top: this._viewport.scrollTop });
+          EventBus.emit('audio:play', { key: 'scroll' });
+        }
+        this._isScrolling = true;
+        if (!this.ticking) {
+          window.requestAnimationFrame(() => {
+            this._render();
+            this._handleParallax();
+            const velocity = Math.abs(this._viewport.scrollTop - this._lastScrollPos);
+            if (velocity > 1) {
+              const chromaAmount = Math.min(12, velocity / 10);
+              setCSS(document.documentElement, { '--chroma-dist': chromaAmount });
+            }
+            this._lastScrollPos = this._viewport.scrollTop;
+            this.ticking = false;
+          });
+          this.ticking = true;
+        }
+        handleScrollEnd();
+      },
+      { passive: true }
+    );
+
+    window.addEventListener('keydown', (e: KeyboardEvent) => {
+      let k = (e as KeyboardEvent).key.toLowerCase();
+      if ((e as KeyboardEvent & { ctrlKey?: boolean }).ctrlKey) k = 'ctrl+' + k;
+      const handler = (GridArchitect.shortcutMap as any)[k];
+      if (typeof handler === 'function') handler(e, this);
+    });
+
+    document.addEventListener('click', (e: MouseEvent) => {
+      if (!this._isInteractingAllowed) return;
+      this._particles.spawn((e as MouseEvent).clientX, (e as MouseEvent).clientY, false);
+      EventBus.emit('audio:play', { key: 'beep', options: { volume: 0.15 } });
+      EventBus.emit('input:click', { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY });
+    });
+
+    window.addEventListener('resize', () => {
+      this.yearHeight = window.innerHeight;
+      this._canvas.style.height = `${this.totalYears * this.yearHeight}px`;
+      (this._particles as any).resize && (this._particles as any).resize();
+      this._render();
+    });
+  }
+
+  private _cursorLoop() {
+    if (!this.animationsEnabled) return;
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+    this._current.x += (this._mouse.x - this._current.x) * OdysseyConfig.physics.cursorInertia;
+    this._current.y += (this._mouse.y - this._current.y) * OdysseyConfig.physics.cursorInertia;
+    document.documentElement.style.setProperty('--ion-x', String(this._current.x));
+    document.documentElement.style.setProperty('--ion-y', String(this._current.y));
+    EventBus.emit('audio:updateSpatialPosition', { x: this._current.x, y: this._current.y });
+    requestAnimationFrame(() => this._cursorLoop());
+  }
+
+  private _handleParallax() {
+    if (!this.animationsEnabled) return;
+    const idx = Math.round(this._viewport.scrollTop / this.yearHeight);
+    const y = this._today.getFullYear() + (idx - this.totalYears / 2);
+    const b = this._activeYears.get(y);
+    if (b && !this._isScrolling) {
+      const offset = (this._viewport.scrollTop % this.yearHeight) - this.yearHeight / 2;
+      const wm = b.querySelector('.watermark-embedded') as HTMLElement | null;
+      if (wm) wm.style.transform = `translate3d(0, ${offset * 0.06}px, 0)`;
+    }
+  }
+
+  private _render() {
+    if (!this.animationsEnabled) return;
+    const idx = Math.round(this._viewport.scrollTop / this.yearHeight);
+    const base = this._today.getFullYear() + (idx - this.totalYears / 2);
+    for (let i = -1; i <= 1; i++) {
+      this._drawYear(base + i, (idx + i) * this.yearHeight);
+    }
+  }
+
+  private _drawYear(year: number, yPos: number) {
+    if (this._activeYears.has(year)) return;
+    const block = document.createElement('section');
+    block.className = 'year-block';
+    block.style.top = `${yPos}px`;
+    block.dataset.year = String(year);
+    const jan1 = new Date(year, 0, 1);
+    const days = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 366 : 365;
+    const vw = window.innerWidth,
+      vh = window.innerHeight;
+    let cols = vw >= 600 ? Math.ceil(Math.ceil(Math.sqrt(373 * (vw / vh))) / 7) * 7 : 7;
+    let gO = this._isRandomMode ? Math.floor(jan1.getTime() / 86400000) % cols : (jan1.getDay() + 6) % 7;
+    const rows = Math.ceil((days + gO) / cols);
+    const isSc = vh / rows < 60;
+    if (isSc) block.classList.add('is-scrolling');
+    const cont = document.createElement('div');
+    cont.className = 'grid-container';
+    cont.style.overflowY = isSc ? 'auto' : 'hidden';
+    const wm = document.createElement('div');
+    wm.className = 'watermark-embedded';
+    wm.innerText = String(year);
+    cont.append(wm);
+    const grid = document.createElement('div');
+    grid.className = 'grid-layer';
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateRows = isSc ? `repeat(${rows}, minmax(60px, 1fr))` : `repeat(${rows}, 1fr)`;
+    grid.style.height = isSc ? 'auto' : '100%';
+    const frag = document.createDocumentFragment();
+    const itD = new Date(year, 0, 1 - gO);
+    for (let s = 0; s < cols * rows; s++) {
+      const isM = itD.getFullYear() === year;
+      const cell = document.createElement('div');
+      let fC = !isM ? (itD.getFullYear() < year ? 'filler-past' : 'filler-future') : '';
+      cell.className = `cell ${!isM ? 'filler ' + fC : ''} ${
+        itD.toDateString() === this._today.toDateString() && isM ? 'today' : ''
+      } ${isM && itD.getDate() === 1 ? 'month-start' : ''} ${
+        isM && (itD.getDay() === 0 || itD.getDay() === 6) ? 'weekend' : ''
+      } ${isM && itD.getDay() === 1 ? 'week-start' : ''}`;
+      cell.innerHTML = `<div class="cell-content"><span class="info-meta ${
+        itD.getDate() === 1 && isM ? 'top-label' : ''
+      }">${
+        isM && (itD.getDate() === 1 || s === gO) ? OdysseyConfig.temporal.monthsShort[itD.getMonth()] : ''
+      }</span><span class="date-num">${itD.getDate()}</span><span class="info-meta">${
+        isM ? OdysseyConfig.temporal.daysShort[itD.getDay()] : ''
+      }</span></div>`;
+      frag.append(cell);
+      itD.setDate(itD.getDate() + 1);
+    }
+    grid.append(frag);
+    cont.append(grid);
+    block.append(cont);
+    this._canvas.append(block);
+    this._activeYears.set(year, block);
+    this.observer!.observe(block);
+  }
+
+  private _setMode(r: boolean) {
+    if (this._isRandomMode === r) return;
+    this._isRandomMode = r;
+    this._activeYears.forEach((b) => {
+      this.observer!.unobserve(b);
+      b.remove();
+    });
+    this._activeYears.clear();
+    this._render();
+    this._saveState();
+    EventBus.emit('audio:play', { key: 'beep' });
+    EventBus.emit('nav:modeChanged', { isRandomMode: r });
+    showToast(r ? 'Randomized Navigation Mode Activated' : 'Chronological Calendar Mode Activated');
+  }
+
+  private _applyTheme(t: string) {
+    document.documentElement.setAttribute('data-theme', t);
+    document.documentElement.style.colorScheme = t;
+  }
+
+  private _toggleTheme() {
+    const v = document.getElementById('theme-veil') as HTMLElement;
+    v.classList.add('active');
+    setTimeout(() => {
+      const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      this._applyTheme(next);
+      localStorage.setItem('theme', next);
+      EventBus.emit('ui:themeChanged', { theme: next });
+      this._saveState();
+      setTimeout(() => v.classList.remove('active'), 200);
+    }, 400);
+  }
+}
