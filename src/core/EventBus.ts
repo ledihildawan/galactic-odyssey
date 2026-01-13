@@ -1,81 +1,77 @@
-import { EventHandler, EventPayload, IEventBus } from '../types/index';
+import { EventMap, TypedEventHandler } from '../types/index';
+import { CoreEvents } from './events';
 
-class EventBus extends EventTarget implements IEventBus {
-  private _map: Map<string, Map<EventHandler, EventListener>>;
+export class EventBus<Events extends EventMap = CoreEvents> extends EventTarget {
+  private _listeners = new Map<keyof Events, Map<TypedEventHandler<any>, EventListener>>();
 
   constructor() {
     super();
-    this._map = new Map();
   }
 
-  on(event: string, handler: EventHandler) {
+  on<K extends keyof Events>(event: K, handler: TypedEventHandler<Events[K]>) {
+    const eventName = event as unknown as string;
+
     const listener: EventListener = (ev: Event) => {
-      const detail = (ev as CustomEvent).detail;
+      const customEvent = ev as CustomEvent<Events[K]>;
       try {
-        handler(detail);
+        handler(customEvent.detail);
       } catch (err) {
-        setTimeout(() => {
-          throw err;
-        });
+        console.error(`Error in event handler for "${eventName}":`, err);
       }
     };
-    if (!this._map.has(event)) this._map.set(event, new Map());
-    this._map.get(event)!.set(handler, listener);
-    this.addEventListener(event, listener);
-    return () => this.off(event, handler);
-  }
 
-  off(event: string, handler?: EventHandler) {
-    const handlers = this._map.get(event);
-    if (!handlers) return;
-    if (!handler) {
-      for (const l of handlers.values()) {
-        this.removeEventListener(event, l);
-      }
-      this._map.delete(event);
-      return;
+    if (!this._listeners.has(event)) {
+      this._listeners.set(event, new Map());
     }
-    const listener = handlers.get(handler);
-    if (!listener) return;
-    this.removeEventListener(event, listener);
-    handlers.delete(handler);
-    if (handlers.size === 0) this._map.delete(event);
-  }
 
-  once(event: string, handler: EventHandler) {
-    const listener: EventListener = (ev: Event) => {
-      const detail = (ev as CustomEvent).detail;
-      try {
-        handler(detail);
-      } catch (err) {
-        setTimeout(() => {
-          throw err;
-        });
-      }
-      // cleanup mapping after invocation
-      const handlers = this._map.get(event);
-      if (handlers) {
-        handlers.delete(handler);
-        if (handlers.size === 0) this._map.delete(event);
-      }
-    };
-    if (!this._map.has(event)) this._map.set(event, new Map());
-    this._map.get(event)!.set(handler, listener);
-    this.addEventListener(event, listener, { once: true });
+    this._listeners.get(event)!.set(handler as TypedEventHandler<any>, listener);
+    this.addEventListener(eventName, listener);
     return () => this.off(event, handler);
   }
 
-  emit(event: string, payload?: EventPayload) {
-    try {
-      return this.dispatchEvent(new CustomEvent(event, { detail: payload }));
-    } catch (err) {
-      setTimeout(() => {
-        throw err;
-      });
+  off<K extends keyof Events>(event: K, handler?: TypedEventHandler<Events[K]>) {
+    const eventName = event as unknown as string;
+    const handlers = this._listeners.get(event);
+
+    if (!handlers) return;
+
+    if (handler) {
+      const listener = handlers.get(handler as TypedEventHandler<any>);
+      if (listener) {
+        this.removeEventListener(eventName, listener);
+        handlers.delete(handler as TypedEventHandler<any>);
+      }
+    } else {
+      for (const listener of handlers.values()) {
+        this.removeEventListener(eventName, listener);
+      }
+      handlers.clear();
+    }
+
+    if (handlers.size === 0) {
+      this._listeners.delete(event);
+    }
+  }
+
+  once<K extends keyof Events>(event: K, handler: TypedEventHandler<Events[K]>) {
+    const onceWrapper: TypedEventHandler<Events[K]> = (payload) => {
+      handler(payload);
+      this.off(event, handler);
+    };
+
+    return this.on(event, onceWrapper);
+  }
+
+  emit<K extends keyof Events>(event: K, payload?: Events[K]) {
+    const eventName = event as unknown as string;
+    if (typeof CustomEvent === 'undefined') {
+      console.warn('CustomEvent is not defined in this environment');
       return false;
     }
+    return this.dispatchEvent(new CustomEvent(eventName, { detail: payload }));
   }
 }
 
-const bus = new EventBus();
+// Default singleton instance kept for backward compatibility with existing imports
+const bus = new EventBus<CoreEvents>();
 export default bus;

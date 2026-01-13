@@ -1,5 +1,7 @@
 export type EventPayload = any;
 export type EventHandler = (payload?: EventPayload) => void;
+export type EventMap = Record<string, any>;
+export type TypedEventHandler<T = any> = (payload: T) => void;
 
 export interface IEventBus {
   on(event: string, handler: EventHandler): () => void;

@@ -1,4 +1,4 @@
-import EventBus from '../core/EventBus';
+import EventBus from '../core';
 import { EVENT_KEYS } from '../core/Keys';
 import { debounce } from '../utils/functionUtils';
 
@@ -11,7 +11,7 @@ const _display = debounce((msg: string, timeout = 2500) => {
   (t as any)._toastTimer = setTimeout(() => t.classList.remove('active'), timeout);
 }, 50);
 
-EventBus.on(EVENT_KEYS.TOAST_SHOW, (payload: any = {}) => {
+EventBus.on(EVENT_KEYS.TOAST_SHOW, (payload = { msg: '' }) => {
   const { msg, timeout } = typeof payload === 'string' ? { msg: payload } : payload;
   if (msg) _display(msg, timeout);
 });

@@ -23,7 +23,7 @@ export const EVENT_KEYS = {
   INPUT_POINTER_MOVE: 'input:pointerMove',
   INPUT_HOVER: 'input:hover',
   INPUT_CLICK: 'input:click',
-};
+} as const;
 
 export const STORAGE_KEYS = {
   AUDIO_ENABLED: 'audio_enabled',

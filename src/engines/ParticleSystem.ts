@@ -1,3 +1,4 @@
+import EventBus from '../core';
 import { EVENT_KEYS } from '../core/Keys';
 import { fs, vs } from './shaders/particle';
 
@@ -34,19 +35,17 @@ export default class ParticleEngine {
     this.maxParticles = 1200;
     this.animationsEnabled = true;
     this.init();
-    import('../core/EventBus').then(({ default: EventBus }) => {
-      EventBus.on(EVENT_KEYS.ANIMATION_SET_ENABLED, (enabled: boolean) => {
-        this.animationsEnabled = enabled;
-        if (!enabled) {
-          this.particles = [];
-          if (this.gl) {
-            this.gl.clearColor(0, 0, 0, 0);
-            this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-          }
-        } else {
-          this.loop();
+    EventBus.on(EVENT_KEYS.ANIMATION_SET_ENABLED, (enabled) => {
+      this.animationsEnabled = Boolean(enabled);
+      if (!enabled) {
+        this.particles = [];
+        if (this.gl) {
+          this.gl.clearColor(0, 0, 0, 0);
+          this.gl.clear(this.gl.COLOR_BUFFER_BIT);
         }
-      });
+      } else {
+        this.loop();
+      }
     });
   }
 

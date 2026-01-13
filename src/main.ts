@@ -1,5 +1,5 @@
+import EventBus from './core';
 import GalacticAudio from './core/AudioEngine';
-import EventBus from './core/EventBus';
 import { EVENT_KEYS } from './core/Keys';
 import GridArchitect from './engines/GridArchitect';
 import { showToast } from './ui/Toast';
@@ -28,7 +28,7 @@ EventBus.on(EVENT_KEYS.APP_BOOTED, (payload: any) => {
     window.addEventListener('focus', () => setPowerSavingMode(false));
   }
 
-  EventBus.on(EVENT_KEYS.POWER_SAVING_CHANGED, ({ enabled }: any) => {
+  EventBus.on(EVENT_KEYS.POWER_SAVING_CHANGED, ({ enabled }) => {
     EventBus.emit(EVENT_KEYS.AUDIO_SET_ENABLED, !enabled);
     EventBus.emit(EVENT_KEYS.ANIMATION_SET_ENABLED, !enabled);
     document.documentElement.classList.toggle('powersave', enabled);
