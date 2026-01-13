@@ -35,6 +35,8 @@
    2. CSS VARIABLES & THEMING
    ============================================ */
 :root {
+  /* Enable automatic theme selection for light/dark */
+  color-scheme: light dark;
   /* Color Palette */
   --accent-primary: light-dark(#4338ca, #fbbf24);
   --accent-secondary: light-dark(#0369a1, #22d3ee);
@@ -52,14 +54,14 @@
   --today-gradient-start: #2563eb;
   --today-gradient-end: #1e40af;
 
-  /* Overlay & Effect Colors */
-  --cyan-overlay: rgba(34, 211, 238, 0.03);
-  --cyan-overlay-strong: rgba(34, 211, 238, 0.08);
-  --cyan-overlay-border: rgba(34, 211, 238, 0.2);
-  --cyan-overlay-border-strong: rgba(34, 211, 238, 0.3);
-  --amber-overlay: rgba(251, 191, 36, 0.05);
-  --toast-bg: rgba(15, 23, 42, 0.8);
-  --watermark-stroke: rgba(148, 163, 184, 0.1);
+  /* Overlay & Effect Colors (light-dark tuned) */
+  --cyan-overlay: light-dark(rgba(34, 211, 238, 0.03), rgba(34, 211, 238, 0.06));
+  --cyan-overlay-strong: light-dark(rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0.12));
+  --cyan-overlay-border: light-dark(rgba(34, 211, 238, 0.2), rgba(34, 211, 238, 0.35));
+  --cyan-overlay-border-strong: light-dark(rgba(34, 211, 238, 0.3), rgba(34, 211, 238, 0.5));
+  --amber-overlay: light-dark(rgba(251, 191, 36, 0.05), rgba(251, 191, 36, 0.1));
+  --toast-bg: light-dark(rgba(15, 23, 42, 0.82), rgba(2, 6, 23, 0.65));
+  --watermark-stroke: light-dark(rgba(148, 163, 184, 0.1), rgba(148, 163, 184, 0.15));
 
   /* White Variants */
   --white-20: rgba(255, 255, 255, 0.2);
@@ -110,6 +112,7 @@
   /* Loading Screen */
   --loader-width: 150px;
   --loader-height: 1px;
+  --loader-track: light-dark(#e2e8f0, rgba(34, 211, 238, 0.2));
 
   /* Font Sizes */
   --font-micro: 6px;
@@ -209,7 +212,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: var(--z-loading);
-  background: light-dark(#f8fafc, #020617);
+  background: var(--bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -221,7 +224,7 @@ body {
   visibility: hidden;
 }
 .loader-text {
-  color: light-dark(#0369a1, #22d3ee);
+  color: var(--accent-secondary);
   font-size: var(--font-xs);
   letter-spacing: 0.5em;
   text-transform: uppercase;
@@ -232,7 +235,7 @@ body {
 .loader-bar {
   width: var(--loader-width);
   height: var(--loader-height);
-  background: light-dark(#e2e8f0, rgba(34, 211, 238, 0.2));
+  background: var(--loader-track);
   position: relative;
   overflow: hidden;
 }
@@ -563,13 +566,4 @@ body {
   opacity: var(--opacity-hidden) !important;
   transform: scale(var(--opacity-hidden)) translateZ(var(--translate-z-active));
   transition: opacity var(--duration-medium) ease-out, transform var(--duration-slow) var(--ease-snap);
-}
-
-/* ============================================
-   13. MEDIA QUERIES
-   ============================================ */
-@media (pointer: fine) {
-  * {
-    cursor: none !important;
-  }
 }
