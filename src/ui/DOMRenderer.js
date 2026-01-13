@@ -1,4 +1,5 @@
-import { setCSS, uniqueId } from '../utils/helpers.js';
+import { setCSS } from '../utils/domUtils.js';
+import { uniqueId } from '../utils/commonUtils.js';
 
 export function query(id) {
   return document.getElementById(id);
@@ -9,16 +10,10 @@ export function createElement(tag, props = {}) {
   return el;
 }
 
-/**
- * Apply multiple CSS properties to an element
- */
 export function applyStyles(element, styles) {
   setCSS(element, styles);
 }
 
-/**
- * Generate unique element ID
- */
 export function generateId(prefix = 'el') {
   return uniqueId(prefix);
 }

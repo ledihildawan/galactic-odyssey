@@ -1,5 +1,5 @@
 import EventBus from '../core/EventBus.js';
-import { debounce } from '../utils/helpers.js';
+import { debounce } from '../utils/functionUtils.js';
 
 const _display = debounce((msg, timeout = 2500) => {
   const t = document.getElementById('toast');

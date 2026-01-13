@@ -18,7 +18,6 @@ export default class GalacticAudio {
     this.idleTimer = null;
     this.#initAudioContext();
 
-    // Subscribe to EventBus for decoupled audio
     this._unbinds = [];
     this._unbinds.push(EventBus.on('audio:play', (p) => this.play(p?.key, p?.options)));
     this._unbinds.push(
@@ -32,7 +31,6 @@ export default class GalacticAudio {
     this._unbinds.push(EventBus.on('audio:updateSpatialPosition', (p) => this.updateSpatialPosition(p?.x, p?.y)));
     this._unbinds.push(EventBus.on('audio:resetIdleTimer', () => this.resetIdleTimer()));
     this._unbinds.push(EventBus.on('audio:setEnabled', (enabled) => this.setEnabled(enabled)));
-    // Listen for power saving mode
     this._unbinds.push(
       EventBus.on('powerSaving:changed', ({ enabled }) => {
         this.setEnabled(!enabled);
@@ -87,7 +85,6 @@ export default class GalacticAudio {
         const buf = await res.arrayBuffer();
         this.#sounds.set(key, await this.#ctx.decodeAudioData(buf));
       } catch (err) {
-        // Ignore missing assets during refactor
       }
     }
   }
@@ -124,7 +121,6 @@ export default class GalacticAudio {
 
   async toggleMaster() {
     if (!this.initialized) {
-      // Initialize audio context on first user interaction
       await this.#waitForInitialization();
     }
     this.enabled = !this.enabled;
@@ -132,7 +128,6 @@ export default class GalacticAudio {
 
     if (this.enabled) {
       try {
-        // Resume context if suspended (autoplay policy)
         if (this.#ctx.state === 'suspended') {
           await this.#ctx.resume();
         }
@@ -155,7 +150,6 @@ export default class GalacticAudio {
 
   async setEnabled(enabled) {
     if (!this.initialized) {
-      // Cannot enable audio without user interaction
       return false;
     }
     if (this.enabled === enabled) return this.enabled;
@@ -173,7 +167,6 @@ export default class GalacticAudio {
             resolve();
           }
         }, 50);
-        // Timeout after 5 seconds
         setTimeout(() => {
           clearInterval(check);
           resolve();

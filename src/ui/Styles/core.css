@@ -1,10 +1,11 @@
-/* ============================================
-   GALACTIC ODYSSEY - CORE CSS ENGINE
-   ============================================ */
-
-/* ============================================
-   1. CSS CUSTOM PROPERTIES (Houdini API)
-   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  #atmosphere {
+    animation: none !important;
+  }
+  .year-block:not(.active) {
+    filter: none !important;
+  }
+}
 @property --ion-x {
   syntax: '<number>';
   inherits: true;
@@ -31,13 +32,15 @@
   initial-value: 0;
 }
 
-/* ============================================
-   2. CSS VARIABLES & THEMING
-   ============================================ */
 :root {
-  /* Enable automatic theme selection for light/dark */
+  --saturate-toast: 180%;
+  --brightness-warp: 1.5;
+  --contrast-warp: 1.2;
+  --gradient-watermark: linear-gradient(180deg, var(--accent-primary), var(--accent-secondary), transparent);
+  --blur-inactive: 6px;
+  --drift-duration: 30s;
+  --drift-distance: 200px;
   color-scheme: light dark;
-  /* Color Palette */
   --accent-primary: light-dark(#4338ca, #fbbf24);
   --accent-secondary: light-dark(#0369a1, #22d3ee);
   --today-glow: light-dark(rgba(67, 56, 202, 0.3), rgba(59, 130, 246, 0.6));
@@ -50,11 +53,9 @@
   --white: #ffffff;
   --black: #000000;
 
-  /* Today Cell Colors */
   --today-gradient-start: #2563eb;
   --today-gradient-end: #1e40af;
 
-  /* Overlay & Effect Colors (light-dark tuned) */
   --cyan-overlay: light-dark(rgba(34, 211, 238, 0.03), rgba(34, 211, 238, 0.06));
   --cyan-overlay-strong: light-dark(rgba(34, 211, 238, 0.08), rgba(34, 211, 238, 0.12));
   --cyan-overlay-border: light-dark(rgba(34, 211, 238, 0.2), rgba(34, 211, 238, 0.35));
@@ -63,26 +64,23 @@
   --toast-bg: light-dark(rgba(15, 23, 42, 0.82), rgba(2, 6, 23, 0.65));
   --watermark-stroke: light-dark(rgba(148, 163, 184, 0.1), rgba(148, 163, 184, 0.15));
 
-  /* White Variants */
   --white-20: rgba(255, 255, 255, 0.2);
   --white-90: rgba(255, 255, 255, 0.9);
 
-  /* Black Variants */
   --black-30: rgba(0, 0, 0, 0.3);
   --black-60: rgba(0, 0, 0, 0.6);
 
-  /* Chromatic Aberration */
   --chroma-red: rgba(255, 0, 0, 0.2);
   --chroma-cyan: rgba(0, 255, 255, 0.2);
 
-  /* Dust & Ion Effects */
   --dust-opacity: light-dark(0.04, 0.12);
   --ion-primary: var(--accent-primary);
   --ion-secondary: var(--accent-secondary);
   --ion-blend: light-dark(multiply, screen);
   --ion-opacity: light-dark(0.4, 0.85);
+  --warp-saturate-boost: 2;
+  --ion-core-radius: 50px;
 
-  /* Z-Index Layers */
   --z-ion: 5;
   --z-atmosphere: 6;
   --z-grid: 2;
@@ -93,7 +91,6 @@
   --z-toast: 99999;
   --z-loading: 100000;
 
-  /* Spacing & Sizing */
   --perspective: 2000px;
   --space-xs: 4px;
   --space-sm: 8px;
@@ -103,18 +100,16 @@
   --space-2xl: 30px;
   --space-3xl: 40px;
 
-  /* Border & Effects */
   --border-width: 0.5px;
   --border-width-strong: 1px;
   --border-width-medium: 2px;
   --border-radius-pill: 40px;
 
-  /* Loading Screen */
   --loader-width: 150px;
   --loader-height: 1px;
   --loader-track: light-dark(#e2e8f0, rgba(34, 211, 238, 0.2));
+  --skeleton-width: 40%;
 
-  /* Font Sizes */
   --font-micro: 6px;
   --font-tiny: 8px;
   --font-xs: 10px;
@@ -123,7 +118,6 @@
   --font-watermark-min: 100px;
   --font-watermark-max: 400px;
 
-  /* Opacity Values */
   --opacity-hidden: 0;
   --opacity-subtle: 0.08;
   --opacity-faint: 0.15;
@@ -132,7 +126,6 @@
   --opacity-half: 0.5;
   --opacity-visible: 1;
 
-  /* Transform & Animation */
   --scale-inactive: 0.8;
   --scale-active: 1;
   --scale-warp-far: 1.4;
@@ -140,20 +133,17 @@
   --translate-z-inactive: -600px;
   --translate-z-active: 0px;
 
-  /* Blur Values */
   --blur-none: 0px;
   --blur-subtle: 10px;
   --blur-medium: 20px;
   --blur-strong: 40px;
   --blur-extreme: 100px;
 
-  /* Timing Functions */
   --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-warp: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --ease-snap: cubic-bezier(0.19, 1, 0.22, 1);
 
-  /* Duration */
   --duration-fast: 0.3s;
   --duration-medium: 0.4s;
   --duration-normal: 0.5s;
@@ -165,19 +155,27 @@
   --duration-ultra-slow: 1.8s;
   --duration-drift: 60s;
 
-  /* Grid & Layout */
+  --letter-spacing-small: 0.1em;
+  --letter-spacing-medium: 0.15em;
+  --letter-spacing-wide: 0.5em;
+  --letter-spacing-wider: 0.25em;
+  --text-transform-uppercase: uppercase;
+  --font-info-meta-dvh: 0.8dvh;
+
+  --reduced-motion-duration: 0.01ms;
+  --reduced-motion-iteration-count: 1;
+
   --grid-offset: -0.5px;
   --grid-width: 100.1%;
+  --watermark-offset-x: 5%;
+  --gradient-angle-week-start: 135deg;
+  --gradient-angle-month-start: 180deg;
 
-  /* Shadow & Glow */
   --shadow-today: 0 10px 30px -5px var(--today-glow);
   --shadow-toast: 0 15px 40px var(--black-60);
   --glow-text-today: 0 2px 10px var(--black-30);
 }
 
-/* ============================================
-   3. GLOBAL RESETS & BASE STYLES
-   ============================================ */
 *,
 *::before,
 *::after {
@@ -189,9 +187,6 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ============================================
-   4. HTML & BODY
-   ============================================ */
 html,
 body {
   height: 100dvh;
@@ -205,9 +200,6 @@ body {
   contain: strict;
 }
 
-/* ============================================
-   5. LOADING SCREEN
-   ============================================ */
 #loading-screen {
   position: fixed;
   inset: 0;
@@ -226,8 +218,8 @@ body {
 .loader-text {
   color: var(--accent-secondary);
   font-size: var(--font-xs);
-  letter-spacing: 0.5em;
-  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: var(--text-transform-uppercase);
   font-weight: 900;
   margin-top: var(--space-lg);
   text-align: center;
@@ -246,9 +238,6 @@ body {
   background: var(--accent-secondary);
 }
 
-/* ============================================
-   6. ION DRIVE & ATMOSPHERIC EFFECTS
-   ============================================ */
 #ion-drive {
   position: fixed;
   inset: 0;
@@ -260,7 +249,7 @@ body {
       transparent 60%
     ),
     radial-gradient(
-      50px circle at calc(var(--ion-x) * 1px) calc(var(--ion-y) * 1px),
+      var(--ion-core-radius) circle at calc(var(--ion-x) * 1px) calc(var(--ion-y) * 1px),
       color-mix(in srgb, var(--ion-primary) 60%, transparent) 0%,
       transparent 100%
     );
@@ -279,20 +268,17 @@ body {
   opacity: var(--dust-opacity);
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   mix-blend-mode: overlay;
-  animation: drift var(--duration-drift) linear infinite;
+  animation: drift var(--drift-duration) linear infinite;
 }
 @keyframes drift {
   from {
     background-position: 0 0;
   }
   to {
-    background-position: 400px 400px;
+    background-position: var(--drift-distance) var(--drift-distance);
   }
 }
 
-/* ============================================
-   7. VIEWPORT & INFINITE CANVAS
-   ============================================ */
 #viewport {
   width: 100vw;
   height: 100dvh;
@@ -311,9 +297,6 @@ body {
   contain: layout;
 }
 
-/* ============================================
-   8. YEAR BLOCKS & NAVIGATION
-   ============================================ */
 .year-block {
   position: absolute;
   left: 0;
@@ -336,14 +319,14 @@ body {
 }
 .year-block:not(.active) {
   transform: scale(var(--scale-inactive)) translate3d(0, 0, var(--translate-z-inactive));
-  filter: blur(var(--blur-medium)) grayscale(var(--opacity-half));
+  filter: blur(var(--blur-inactive)) grayscale(var(--opacity-half));
   opacity: var(--opacity-faint);
 }
 .year-block:not(.active) .date-num {
   background: var(--text-muted);
   color: transparent !important;
   height: var(--loader-height);
-  width: 40%;
+  width: var(--skeleton-width);
   margin: var(--space-xs) auto;
   opacity: var(--opacity-half);
 }
@@ -351,9 +334,6 @@ body {
   opacity: 0;
 }
 
-/* ============================================
-   9. GRID SYSTEM & LAYOUT
-   ============================================ */
 .year-block.active {
   transform: scale(var(--scale-active)) translate3d(0, 0, var(--translate-z-active));
   filter: blur(var(--blur-none));
@@ -367,23 +347,22 @@ body {
   background: var(--bg);
   overflow-x: hidden;
   scrollbar-width: none;
-  filter: drop-shadow(calc(var(--chroma-dist) * -1px) 0 0 var(--chroma-red))
-    drop-shadow(calc(var(--chroma-dist) * 1px) 0 0 var(--chroma-cyan));
+  filter: drop-shadow(calc(var(--chroma-dist) * 1px) 0 0 var(--chroma-cyan));
   backface-visibility: hidden;
   transform: translateZ(0);
-  will-change: transform, filter;
+  will-change: transform;
 }
 .watermark-embedded {
   position: absolute;
   top: 0;
-  right: 5%;
+  right: var(--watermark-offset-x);
   height: 100%;
   display: flex;
   align-items: center;
   font-size: clamp(var(--font-watermark-min), 30dvh, var(--font-watermark-max));
   font-weight: 900;
   color: transparent;
-  background: linear-gradient(180deg, var(--accent-primary), var(--accent-secondary), transparent);
+  background: var(--gradient-watermark);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-stroke: var(--border-width-strong) var(--watermark-stroke);
@@ -417,9 +396,6 @@ body {
   opacity: var(--opacity-visible);
 }
 
-/* ============================================
-   10. CELL STYLES & VARIANTS
-   ============================================ */
 .cell {
   background: var(--cell-bg);
   position: relative;
@@ -429,16 +405,8 @@ body {
   transition: background var(--duration-medium) ease, opacity var(--duration-medium) ease;
   contain: content;
 }
-.cell.filler {
-  opacity: var(--opacity-faint);
-  background: transparent;
-  pointer-events: auto;
-}
-.cell.weekend {
-  background: linear-gradient(135deg, var(--cyan-overlay) 0%, transparent 100%);
-}
 .cell.week-start {
-  background: linear-gradient(135deg, var(--amber-overlay) 0%, transparent 100%);
+  background: linear-gradient(var(--gradient-angle-week-start), var(--amber-overlay) 0%, transparent 100%);
 }
 .cell.week-start::after {
   content: '';
@@ -452,14 +420,14 @@ body {
   z-index: var(--z-cell-effect);
 }
 .cell.month-start {
-  background: linear-gradient(180deg, var(--cyan-overlay-strong) 0%, transparent 100%);
+  background: linear-gradient(var(--gradient-angle-month-start), var(--cyan-overlay-strong) 0%, transparent 100%);
   box-shadow: inset 0 var(--border-width-medium) 0 0 var(--accent-secondary),
     inset 0 0 0 var(--border-width) var(--border);
 }
 .cell.month-start .info-meta.top-label {
   color: var(--accent-secondary);
   font-weight: 900;
-  letter-spacing: 0.15em;
+  letter-spacing: var(--letter-spacing-medium);
 }
 .cell.today {
   background: linear-gradient(135deg, var(--today-gradient-start) 0%, var(--today-gradient-end) 100%);
@@ -486,23 +454,21 @@ body {
   pointer-events: none;
 }
 .info-meta {
-  font-size: clamp(var(--font-micro), 0.8dvh, var(--font-tiny));
-  text-transform: uppercase;
+  font-size: clamp(var(--font-micro), var(--font-info-meta-dvh), var(--font-tiny));
+  text-transform: var(--text-transform-uppercase);
   font-weight: 600;
   color: var(--text-muted);
-  letter-spacing: 0.1em;
+  letter-spacing: var(--letter-spacing-small);
   transition: opacity var(--duration-medium) ease;
 }
 
-/* ============================================
-   11. UI COMPONENTS (Toast, Theme Veil)
-   ============================================ */
 .date-num {
   font-size: clamp(var(--font-sm), 2.5dvh, var(--font-lg));
   font-weight: 300;
   line-height: 1;
   color: var(--text-main);
-  transition: all var(--duration-medium) ease;
+  transition: color var(--duration-medium) ease, font-size var(--duration-medium) ease;
+  will-change: color, font-size;
 }
 #toast {
   position: fixed;
@@ -511,7 +477,7 @@ body {
   transform: translateX(-50%) translateY(var(--space-lg));
   background: var(--toast-bg);
   color: var(--accent-secondary);
-  backdrop-filter: blur(var(--blur-medium)) saturate(180%);
+  backdrop-filter: blur(var(--blur-medium)) saturate(var(--saturate-toast));
   padding: var(--space-md) var(--space-xl);
   border-radius: var(--border-radius-pill);
   font-weight: 900;
@@ -519,9 +485,10 @@ body {
   z-index: var(--z-toast);
   opacity: var(--opacity-hidden);
   border: var(--border-width-strong) solid var(--cyan-overlay-border-strong);
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  transition: all var(--duration-slow) var(--ease-bounce);
+  letter-spacing: var(--letter-spacing-wider);
+  text-transform: var(--text-transform-uppercase);
+  transition: opacity var(--duration-slow) var(--ease-bounce), transform var(--duration-slow) var(--ease-bounce);
+  will-change: opacity, transform;
   pointer-events: none;
   box-shadow: var(--shadow-toast);
 }
@@ -537,22 +504,20 @@ body {
   pointer-events: none;
   opacity: var(--opacity-hidden);
   transition: opacity var(--duration-normal);
+  will-change: opacity;
 }
 #theme-veil.active {
   opacity: var(--opacity-visible);
 }
 
-/* ============================================
-   12. WARP EFFECTS & TRANSITIONS
-   ============================================ */
 #viewport.warping-far .year-block {
-  filter: blur(var(--blur-extreme)) saturate(2);
+  filter: blur(var(--blur-extreme)) saturate(var(--warp-saturate-boost));
   opacity: var(--opacity-hidden);
   transition: all var(--duration-slower) var(--ease-smooth);
 }
 #viewport.warping-far #infinite-canvas {
   transform: scale(var(--scale-warp-far)) translateZ(var(--translate-z-active));
-  filter: blur(var(--blur-strong)) brightness(1.5) contrast(1.2);
+  filter: blur(var(--blur-strong)) brightness(var(--brightness-warp)) contrast(var(--contrast-warp));
   transition: transform var(--duration-ultra-slow) var(--ease-smooth), filter var(--duration-smooth) ease-in-out;
 
   opacity: var(--opacity-medium);
@@ -586,4 +551,14 @@ body {
 :root.powersave *::after {
   transition: none !important;
   animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation-duration: var(--reduced-motion-duration) !important;
+    animation-iteration-count: var(--reduced-motion-iteration-count) !important;
+  }
 }

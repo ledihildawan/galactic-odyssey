@@ -1,15 +1,12 @@
 // Audio is now decoupled via EventBus; do not import or instantiate directly
-// Core dependencies
 import { OdysseyConfig } from '../core/Config.js';
 import EventBus from '../core/EventBus.js';
-// UI utilities
 import { showToast } from '../ui/Toast.js';
-import { debounce, setCSS } from '../utils/helpers.js';
-// Particle system
+import { debounce } from '../utils/functionUtils.js';
+import { setCSS } from '../utils/domUtils.js';
 import ParticleEngine from './ParticleSystem.js';
 
 export default class GridArchitect {
-  // Private fields
   #activeYears = new Map();
   #today = new Date();
   #particles = new ParticleEngine();
@@ -25,7 +22,6 @@ export default class GridArchitect {
   #lastMouse = { x: 0, y: 0 };
   #isRandomMode = OdysseyConfig.display.defaultMode === 'random';
 
-  // Static shortcut map for key bindings
   static shortcutMap = {
     'ctrl+t'(e, self) {
       e.preventDefault();
@@ -48,7 +44,6 @@ export default class GridArchitect {
   };
 
   constructor() {
-    // Initialization
     this.totalYears = OdysseyConfig.temporal.totalYears;
     this.yearHeight = window.innerHeight;
     this.startY = (this.totalYears / 2) * this.yearHeight;
@@ -57,13 +52,11 @@ export default class GridArchitect {
 
     this.#loadState();
 
-    // Listen for audio toggle events
     EventBus.on('audio:toggled', (p = {}) => {
       showToast(p.enabled ? 'Ion Drive System Online' : 'Audio Systems Disabled');
       this.#saveState();
     });
 
-    // Listen for power saving mode
     EventBus.on('animation:setEnabled', (enabled) => {
       this.animationsEnabled = enabled;
       if (enabled) {
@@ -74,7 +67,6 @@ export default class GridArchitect {
     this.#runBoot();
   }
 
-  // State Management
   #loadState() {
     const saved = localStorage.getItem('odyssey_state');
     if (saved) {
@@ -84,7 +76,6 @@ export default class GridArchitect {
         if (state.scrollPosition) {
           this.startY = state.scrollPosition;
         }
-        // Don't auto-restore audio state (browser autoplay policy)
         EventBus.emit('state:restored', state);
       } catch (e) {
         showToast('System State Restoration Failed', 2000);
@@ -109,7 +100,6 @@ export default class GridArchitect {
     }
   }
 
-  // Boot Sequence
   async #runBoot() {
     const bar = document.getElementById('load-progress');
     const steps = [
@@ -128,19 +118,16 @@ export default class GridArchitect {
   }
 
   #init() {
-    // Theme and canvas setup
     this.#applyTheme(localStorage.getItem('theme') || 'dark');
     this.#canvas.style.height = `${this.totalYears * this.yearHeight}px`;
     this.#viewport.scrollTop = this.startY;
 
-    // State saving events
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) this.#saveState();
     });
     window.addEventListener('beforeunload', () => this.#saveState());
     setInterval(() => this.#saveState(), 30000);
 
-    // Intersection observer for year blocks
     this.observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
@@ -168,14 +155,12 @@ export default class GridArchitect {
       { threshold: 0.05, rootMargin: '20% 0px' }
     );
 
-    // Listeners, cursor, and initial render
     this.#setupListeners();
     this.#cursorLoop();
     this.#render();
     setTimeout(() => this.jumpToToday(true), 150);
   }
 
-  // UI Effects
   #setIonGlow(value) {
     document.documentElement.style.setProperty('--ion-glow', value);
   }
@@ -196,11 +181,9 @@ export default class GridArchitect {
     }, 400);
   }
 
-  // Navigation
   jumpToToday(isInitial = false) {
     if (this.#isWarping) return;
     const targetYear = this.#today.getFullYear();
-    // Calculate scroll position for today
     const todayScrollTop =
       (targetYear - (this.#today.getFullYear() - Math.floor(this.totalYears / 2))) * this.yearHeight;
     const currentYear =
@@ -253,7 +236,6 @@ export default class GridArchitect {
   }
 
   #setupListeners() {
-    // Pointer movement
     window.addEventListener(
       'pointermove',
       (e) => {
@@ -273,7 +255,6 @@ export default class GridArchitect {
       { passive: true }
     );
 
-    // Cell hover
     document.addEventListener(
       'mouseover',
       (e) => {
@@ -293,7 +274,6 @@ export default class GridArchitect {
       { passive: true }
     );
 
-    // Cell mouseout
     document.addEventListener(
       'mouseout',
       (e) => {
@@ -305,7 +285,6 @@ export default class GridArchitect {
       { passive: true }
     );
 
-    // Scroll handling
     const handleScrollEnd = debounce(() => {
       this.#isScrolling = false;
       this.#unlockInteractions();
@@ -341,7 +320,6 @@ export default class GridArchitect {
       { passive: true }
     );
 
-    // Keyboard shortcuts
     window.addEventListener('keydown', (e) => {
       let k = e.key.toLowerCase();
       if (e.ctrlKey) k = 'ctrl+' + k;
@@ -349,7 +327,6 @@ export default class GridArchitect {
       if (typeof handler === 'function') handler(e, this);
     });
 
-    // Clicks
     document.addEventListener('click', (e) => {
       if (!this.#isInteractingAllowed) return;
       this.#particles.spawn(e.clientX, e.clientY, false);
@@ -357,7 +334,6 @@ export default class GridArchitect {
       EventBus.emit('input:click', { x: e.clientX, y: e.clientY });
     });
 
-    // Window resize
     window.addEventListener('resize', () => {
       this.yearHeight = window.innerHeight;
       this.#canvas.style.height = `${this.totalYears * this.yearHeight}px`;
@@ -366,7 +342,6 @@ export default class GridArchitect {
     });
   }
 
-  // Cursor animation
   #cursorLoop() {
     if (!this.animationsEnabled) return;
     if (window.matchMedia('(pointer: coarse)').matches) return;
@@ -378,7 +353,6 @@ export default class GridArchitect {
     requestAnimationFrame(() => this.#cursorLoop());
   }
 
-  // Parallax effect
   #handleParallax() {
     if (!this.animationsEnabled) return;
     const idx = Math.round(this.#viewport.scrollTop / this.yearHeight);
@@ -391,7 +365,6 @@ export default class GridArchitect {
     }
   }
 
-  // Main render
   #render() {
     if (!this.animationsEnabled) return;
     const idx = Math.round(this.#viewport.scrollTop / this.yearHeight);
@@ -403,7 +376,6 @@ export default class GridArchitect {
 
   #drawYear(year, yPos) {
     if (this.#activeYears.has(year)) return;
-    // Year block creation
     const block = document.createElement('section');
     block.className = 'year-block';
     block.style.top = `${yPos}px`;
@@ -458,7 +430,6 @@ export default class GridArchitect {
     this.observer.observe(block);
   }
 
-  // Mode switching
   #setMode(r) {
     if (this.#isRandomMode === r) return;
     this.#isRandomMode = r;
@@ -474,7 +445,6 @@ export default class GridArchitect {
     showToast(r ? 'Randomized Navigation Mode Activated' : 'Chronological Calendar Mode Activated');
   }
 
-  // Theme handling
   #applyTheme(t) {
     document.documentElement.setAttribute('data-theme', t);
     document.documentElement.style.colorScheme = t;

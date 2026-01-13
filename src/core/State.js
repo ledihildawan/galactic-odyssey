@@ -6,7 +6,6 @@ export const GlobalState = {
   theme: 'dark',
   audioEnabled: false,
 
-  // Fungsi untuk update yang akan mentrigger reaksi di UI/Engine
   setWarping(val) {
     this.isWarping = val;
     bus.emit('state:warp', val);

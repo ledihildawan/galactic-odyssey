@@ -35,7 +35,6 @@ class EventBus {
       try {
         h(payload);
       } catch (err) {
-        // schedule throw so other listeners still run
         setTimeout(() => {
           throw err;
         });

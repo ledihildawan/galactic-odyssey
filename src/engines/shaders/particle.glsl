@@ -1,4 +1,3 @@
-// Vertex Shader
 attribute vec2 a_pos;
 attribute vec2 a_vel;
 attribute float a_life;
@@ -15,9 +14,7 @@ void main(){
   v_life=a_life;
   v_color=a_color;
 }
-// --- VERTEX END ---
 
-// Fragment Shader
 precision mediump float;
 varying float v_life;
 varying vec3 v_color;
@@ -29,4 +26,3 @@ void main(){
   float glow=pow(1.0-(d*2.0),intensity);
   gl_FragColor=vec4(v_color,glow*v_life);
 }
-// --- FRAGMENT END ---

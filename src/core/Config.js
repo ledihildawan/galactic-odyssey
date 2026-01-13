@@ -16,7 +16,6 @@ function makeShortMonthNames(locale) {
 }
 
 function makeShortWeekdayNames(locale) {
-  // Use a known Sunday as base (2023-01-01 is Sunday)
   const days = [];
   for (let d = 0; d < 7; d++) {
     const dt = new Date(Date.UTC(2023, 0, 1 + d));

@@ -8,7 +8,6 @@ EventBus.on('app:booted', (payload) => {
 });
 
 (function setupPowerSavingMode() {
-(function setupPowerSavingMode() {
   let powerSavingMode = false;
 
   function setPowerSavingMode(enable) {
@@ -18,7 +17,6 @@ EventBus.on('app:booted', (payload) => {
 
   window.enablePowerSavingMode = setPowerSavingMode;
 
-  // Aktifkan otomatis saat tab tidak terlihat atau window blur
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
       setPowerSavingMode(document.hidden);
@@ -29,9 +27,7 @@ EventBus.on('app:booted', (payload) => {
     window.addEventListener('focus', () => setPowerSavingMode(false));
   }
 
-  // Sinkronisasi efek mode hemat daya
   EventBus.on('powerSaving:changed', ({ enabled }) => {
-    // Sinkronisasi audio, animasi, CSS, dan info user
     EventBus.emit('audio:setEnabled', !enabled);
     EventBus.emit('animation:setEnabled', !enabled);
     document.documentElement.classList.toggle('powersave', enabled);

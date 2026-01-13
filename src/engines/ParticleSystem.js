@@ -13,19 +13,16 @@ export default class ParticleEngine {
     this.maxParticles = 1200;
     this.animationsEnabled = true;
     this.init();
-    // Listen for power saving mode
     import('../core/EventBus.js').then(({ default: EventBus }) => {
       EventBus.on('animation:setEnabled', (enabled) => {
         this.animationsEnabled = enabled;
         if (!enabled) {
-          // Clear all particles and freeze canvas
           this.particles = [];
           if (this.gl) {
             this.gl.clearColor(0, 0, 0, 0);
             this.gl.clear(this.gl.COLOR_BUFFER_BIT);
           }
         } else {
-          // Resume loop if needed
           this.loop();
         }
       });
