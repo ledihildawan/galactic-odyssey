@@ -1,4 +1,3 @@
-// Minimal DOM renderer placeholder — can be extended or replaced by framework-specific renderer
 import { setCSS, uniqueId } from '../utils/helpers.js';
 
 export function query(id) {

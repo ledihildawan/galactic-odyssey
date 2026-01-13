@@ -10,7 +10,7 @@ export const GlobalState = {
   setWarping(val) {
     this.isWarping = val;
     bus.emit('state:warp', val);
-  }
+  },
 };
 
 export default GlobalState;

@@ -1,5 +1,4 @@
 // Vertex Shader
-// --- VERTEX START ---
 attribute vec2 a_pos;
 attribute vec2 a_vel;
 attribute float a_life;
@@ -19,7 +18,6 @@ void main(){
 // --- VERTEX END ---
 
 // Fragment Shader
-// --- FRAGMENT START ---
 precision mediump float;
 varying float v_life;
 varying vec3 v_color;
