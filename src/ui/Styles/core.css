@@ -403,6 +403,10 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+#viewport.no-snap {
+  scroll-snap-type: none;
+}
+
 #viewport.is-locked {
   pointer-events: none !important;
 }
@@ -714,5 +718,25 @@ body {
 
   .year-block:not(.active) {
     filter: none !important;
+  }
+}
+
+.cell.quantum-arrival {
+  background: rgba(0, 255, 255, 0.25) !important;
+  border: 2px solid #00ffff !important;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
+  z-index: 10;
+  position: relative;
+  animation: quantum-pulse 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes quantum-pulse {
+  from {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  to {
+    transform: scale(1.05);
+    filter: brightness(1.4);
   }
 }

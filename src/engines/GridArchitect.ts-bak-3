@@ -1,0 +1,770 @@
+import EventBus from '../core';
+import { OdysseyConfig } from '../core/Config';
+import { EVENT_KEYS, STORAGE_KEYS } from '../core/Keys';
+import { showToast } from '../ui/Toast';
+import { setCSS } from '../utils/domUtils';
+import { debounce } from '../utils/functionUtils';
+import ParticleEngine from './ParticleSystem';
+type Vec2 = { x: number; y: number };
+
+interface WarpOptions {
+  distance?: number;
+  isInitial?: boolean;
+  warpClass?: string;
+  duration?: number;
+  landingDateKey?: string;
+  emitAudioKey?: string;
+}
+
+export default class GridArchitect {
+  private static readonly SCROLL_SNAP_CLASS = 'no-snap';
+  private static readonly WARP_FAR_DURATION = 2000;
+  private static readonly WARP_NEAR_DURATION = 1200;
+  private static readonly WARP_SHORT_DURATION = 500;
+  private static readonly SAVE_INTERVAL_MS = 30000;
+  private static readonly BOOT_JUMP_DELAY = 50;
+  private readonly _viewport = document.getElementById('viewport') as HTMLElement;
+  private readonly _canvas = document.getElementById('infinite-canvas') as HTMLElement;
+  private readonly _ionDrive = document.getElementById('ion-drive') as HTMLElement;
+
+  private readonly _particles = new ParticleEngine();
+
+  private readonly _activeYears = new Map<number, HTMLElement>();
+  observer: IntersectionObserver | null = null;
+  private _observerPaused = false;
+  ticking = false;
+
+  private readonly _today = new Date();
+  totalYears: number;
+  yearHeight: number;
+  startY: number;
+  private _baseYearOffset: number;
+
+  private _lastScrollPos = 0;
+  private _isScrolling = false;
+  private _isWarping = false;
+  private _isInteractingAllowed = true;
+
+  private readonly _mouse: Vec2 = { x: globalThis.innerWidth / 2, y: globalThis.innerHeight / 2 };
+  private readonly _current: Vec2 = { x: globalThis.innerWidth / 2, y: globalThis.innerHeight / 2 };
+  private _lastMouse: Vec2 = { x: 0, y: 0 };
+
+  private _boundPointerMove?: (e: PointerEvent) => void;
+  private _boundMouseOver?: (e: MouseEvent) => void;
+  private _boundMouseOut?: (e: MouseEvent) => void;
+  private _boundScroll?: () => void;
+  private _boundClick?: (e: MouseEvent) => void;
+  private _boundResize?: () => void;
+  private _boundKeydown?: (e: KeyboardEvent) => void;
+
+  private _handleScrollEnd = debounce(() => this._onScrollEnd(), 150);
+
+  private _isRandomMode = OdysseyConfig.display.defaultMode === 'random';
+  animationsEnabled: boolean;
+
+  private _saveInterval: any;
+  private _isPendingSave = false;
+
+  private _quantumLandingDate: Date | null = null;
+
+  constructor() {
+    this.totalYears = OdysseyConfig.temporal.totalYears;
+    this.yearHeight = globalThis.innerHeight;
+    this._baseYearOffset = Math.floor(this.totalYears / 2);
+    this.startY = this._baseYearOffset * this.yearHeight;
+    this.animationsEnabled = true;
+
+    this._loadState();
+
+    EventBus.on(EVENT_KEYS.AUDIO_TOGGLED, (p?: { enabled: boolean }) => {
+      const payload = p ?? { enabled: false };
+      showToast(payload.enabled ? 'Ion Drive System Online' : 'Audio Systems Disabled');
+      this._saveState();
+    });
+
+    EventBus.on(EVENT_KEYS.ANIMATION_SET_ENABLED, (enabled: boolean) => {
+      this.animationsEnabled = enabled;
+      if (enabled) this._cursorLoop();
+    });
+
+    setTimeout(() => void this._runBoot(), 0);
+  }
+
+  jumpToToday(isInitial = false) {
+    if (this._isWarping && !isInitial) return;
+
+    this.yearHeight = globalThis.innerHeight;
+    const targetScrollTop = this._baseYearOffset * this.yearHeight;
+    const targetYear = this._today.getFullYear();
+
+    const { currentYear } = this._getCurrentScrollIdxYear();
+    const distance = Math.abs(targetYear - currentYear);
+
+    if (distance === 0 && Math.abs(this._viewport.scrollTop - targetScrollTop) < 1 && !isInitial) return;
+
+    const audioKey = !isInitial ? (distance > 20 ? 'jump' : distance >= 2 ? 'warp' : 'scroll') : undefined;
+    if (!isInitial) showToast(distance > 20 ? 'Executing Quantum Home Sequence' : 'Returning to Local Timeline');
+    this._warpTo(targetYear, targetScrollTop, { distance, isInitial, emitAudioKey: audioKey });
+  }
+
+  jumpToRandom() {
+    if (this._isWarping) return;
+
+    this.yearHeight = globalThis.innerHeight;
+    const randomOffset = Math.floor(Math.random() * this.totalYears);
+    const targetYear = this._today.getFullYear() + (randomOffset - this._baseYearOffset);
+    const targetScrollTop = randomOffset * this.yearHeight;
+
+    const isLeap = this._isLeapYear(targetYear);
+    const randomDayOfYear = Math.floor(Math.random() * (isLeap ? 366 : 365)) + 1;
+    const landingDate = new Date(targetYear, 0, 1);
+    landingDate.setDate(randomDayOfYear);
+
+    this._quantumLandingDate = landingDate;
+
+    const { currentYear } = this._getCurrentScrollIdxYear();
+    const distance = Math.abs(targetYear - currentYear);
+
+    showToast(`Quantum Jump: Heading to ${landingDate.toDateString()}`, 3000);
+
+    this._play('jump', { volume: 0.9 });
+    this._warpTo(targetYear, targetScrollTop, {
+      distance,
+      isInitial: false,
+      landingDateKey: this._dateKey(landingDate),
+      emitAudioKey: undefined,
+      duration: 2000,
+    });
+  }
+
+  private _saveState() {
+    if (this._isWarping || this._isPendingSave) return;
+
+    this._isPendingSave = true;
+    globalThis.setTimeout(() => {
+      try {
+        const currentScroll = this._viewport?.scrollTop || this.startY;
+        const currentYearIndex = Math.round(currentScroll / this.yearHeight);
+
+        const state = {
+          theme: document.documentElement.dataset.theme,
+          isRandomMode: this._isRandomMode,
+          yearIndex: currentYearIndex,
+          scrollPosition: currentScroll,
+          audioEnabled: localStorage.getItem(STORAGE_KEYS.AUDIO_ENABLED) !== 'false',
+          lastVisit: new Date().toISOString(),
+        };
+
+        localStorage.setItem(STORAGE_KEYS.ODYSSEY_STATE, JSON.stringify(state));
+        EventBus.emit(EVENT_KEYS.STATE_SAVED, state);
+      } finally {
+        this._isPendingSave = false;
+      }
+    }, 500);
+  }
+
+  private _loadState() {
+    const saved = localStorage.getItem(STORAGE_KEYS.ODYSSEY_STATE);
+    if (!saved) return;
+
+    try {
+      const state = JSON.parse(saved);
+      this._isRandomMode = state.isRandomMode ?? this._isRandomMode;
+
+      if (state.yearIndex !== undefined) this.startY = state.yearIndex * this.yearHeight;
+      else if (state.scrollPosition && !isNaN(state.scrollPosition)) this.startY = state.scrollPosition;
+
+      if (state.theme) {
+        this._applyTheme(state.theme);
+        localStorage.setItem(STORAGE_KEYS.THEME, state.theme);
+      }
+
+      EventBus.emit(EVENT_KEYS.STATE_RESTORED, state);
+    } catch (e) {}
+  }
+
+  public destroy() {
+    this.animationsEnabled = false;
+    globalThis.clearInterval(this._saveInterval);
+    this.observer?.disconnect();
+    EventBus.off(EVENT_KEYS.AUDIO_TOGGLED);
+    EventBus.off(EVENT_KEYS.ANIMATION_SET_ENABLED);
+
+    if (this._boundPointerMove) globalThis.removeEventListener('pointermove', this._boundPointerMove as EventListener);
+    if (this._boundMouseOver) document.removeEventListener('mouseover', this._boundMouseOver as EventListener);
+    if (this._boundMouseOut) document.removeEventListener('mouseout', this._boundMouseOut as EventListener);
+    if (this._boundScroll) this._viewport.removeEventListener('scroll', this._boundScroll as EventListener);
+    if (this._boundClick) document.removeEventListener('click', this._boundClick as EventListener);
+    if (this._boundResize) globalThis.removeEventListener('resize', this._boundResize as EventListener);
+    if (this._boundKeydown) globalThis.removeEventListener('keydown', this._boundKeydown as EventListener);
+    this._activeYears.forEach((b) => b.remove());
+    this._activeYears.clear();
+  }
+
+  private async _runBoot() {
+    const bar = document.getElementById('load-progress');
+    const steps = [
+      { p: 40, t: 'Initializing Navigation Systems' },
+      { p: 80, t: 'Calibrating Audio Processors' },
+      { p: 100, t: 'Systems Ready for Departure' },
+    ];
+
+    for (const s of steps) {
+      await new Promise((r) => setTimeout(r, 400));
+      if (bar instanceof HTMLElement) bar.style.width = `${s.p}%`;
+      const statusEl = document.getElementById('load-status');
+      if (statusEl instanceof HTMLElement) statusEl.innerText = s.t;
+    }
+
+    this._init();
+    EventBus.emit(EVENT_KEYS.APP_BOOTED, { architect: this });
+
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen instanceof HTMLElement) setTimeout(() => loadingScreen.classList.add('hidden'), 600);
+  }
+
+  private _init() {
+    this._applyTheme(localStorage.getItem(STORAGE_KEYS.THEME) || 'dark');
+    this._canvas.style.height = `${this.totalYears * this.yearHeight}px`;
+
+    requestAnimationFrame(() => {
+      this._viewport.scrollTop = this.startY;
+      this._render();
+      setTimeout(() => {
+        this._lastScrollPos = this._viewport.scrollTop;
+        this.jumpToToday(true);
+      }, GridArchitect.BOOT_JUMP_DELAY);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this._saveState();
+    });
+    globalThis.addEventListener('beforeunload', () => this._saveState());
+    this._saveInterval = globalThis.setInterval(() => this._saveState(), GridArchitect.SAVE_INTERVAL_MS);
+
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          const b = e.target as HTMLElement;
+          const year = Number.parseInt(b.dataset.year || '0', 10);
+          const wasActive = b.classList.contains('active');
+          b.classList.toggle('active', e.isIntersecting);
+          if (e.isIntersecting && !wasActive && 'vibrate' in navigator) navigator.vibrate?.(8);
+
+          if (!e.isIntersecting) {
+            if (b.dataset.keep === 'true') return;
+            const currentYear = this._getCurrentYearFromScroll();
+            if (Math.abs(year - currentYear) > 2) {
+              this._activeYears.delete(year);
+              this.observer!.unobserve(b);
+              b.remove();
+            }
+          }
+        });
+      },
+      { threshold: 0.01, rootMargin: '50% 0px' }
+    );
+
+    this._setupListeners();
+    this._cursorLoop();
+  }
+
+  private _getCurrentYearFromScroll(): number {
+    const currentScroll = this._viewport.scrollTop === 0 ? this.startY : this._viewport.scrollTop;
+    const currentIdx = Math.round(currentScroll / this.yearHeight);
+    return this._today.getFullYear() + (currentIdx - this._baseYearOffset);
+  }
+
+  private _setIonGlow(value: string) {
+    document.documentElement.style.setProperty('--ion-glow', value);
+  }
+
+  private _lockInteractions() {
+    this._isInteractingAllowed = false;
+    this._viewport.classList.add('is-locked');
+    this._setIonGlow('200px');
+    EventBus.emit(EVENT_KEYS.AUDIO_SET_BUSY, true);
+  }
+
+  private _unlockInteractions() {
+    setTimeout(() => {
+      this._isInteractingAllowed = true;
+      EventBus.emit(EVENT_KEYS.AUDIO_SET_BUSY, false);
+      this._viewport.classList.remove('is-locked');
+      this._setIonGlow('700px');
+    }, 400);
+  }
+
+  private _setupListeners() {
+    this._boundKeydown = (e: KeyboardEvent) => this._handleKeyboardInputBound(e);
+    globalThis.addEventListener('keydown', this._boundKeydown);
+
+    this._boundPointerMove = (e: PointerEvent) => this._onPointerMove(e);
+    globalThis.addEventListener('pointermove', this._boundPointerMove, { passive: true });
+    this._boundMouseOver = (e: MouseEvent) => this._onMouseOver(e);
+    document.addEventListener('mouseover', this._boundMouseOver, { passive: true });
+    this._boundMouseOut = (e: MouseEvent) => this._onMouseOut(e);
+    document.addEventListener('mouseout', this._boundMouseOut, { passive: true });
+
+    this._boundScroll = () => this._onScroll();
+    this._viewport.addEventListener('scroll', this._boundScroll, { passive: true });
+    this._boundClick = (e: MouseEvent) => this._onClick(e);
+    document.addEventListener('click', this._boundClick);
+    this._boundResize = () => this._onResize();
+    globalThis.addEventListener('resize', this._boundResize);
+  }
+
+  private _handleKeyboardInputBound(e: KeyboardEvent) {
+    let k = e.key.toLowerCase();
+    if (e.ctrlKey) k = 'ctrl+' + k;
+    switch (k) {
+      case 'ctrl+.':
+        e.preventDefault();
+        this._play('theme');
+        this._toggleTheme();
+        break;
+      case 'm':
+        EventBus.emit(EVENT_KEYS.AUDIO_TOGGLE_MASTER);
+        break;
+      case 'home':
+        e.preventDefault();
+        this.jumpToToday();
+        break;
+      case 'r':
+        this._setMode(true);
+        break;
+      case 'c':
+        this._setMode(false);
+        break;
+      case 'x':
+        this.jumpToRandom();
+        break;
+    }
+  }
+
+  private _onPointerMove(e: PointerEvent) {
+    this._mouse.x = e.clientX;
+    this._mouse.y = e.clientY;
+    const velocity = Math.hypot(e.clientX - this._lastMouse.x, e.clientY - this._lastMouse.y);
+    if (velocity > OdysseyConfig.physics.exhaustThreshold) this._particles.spawn(e.clientX, e.clientY, true);
+    EventBus.emit(EVENT_KEYS.AUDIO_INJECT_ENGINE_POWER, velocity);
+    EventBus.emit(EVENT_KEYS.INPUT_POINTER_MOVE, { x: e.clientX, y: e.clientY, velocity });
+    this._lastMouse = { x: e.clientX, y: e.clientY };
+    EventBus.emit(EVENT_KEYS.AUDIO_RESET_IDLE_TIMER);
+  }
+
+  private _onMouseOver(e: MouseEvent) {
+    if (!this._isInteractingAllowed || this._isWarping || this._isScrolling) return;
+    const maybeCell = (e.target as Element).closest('.cell');
+    if (!(maybeCell instanceof HTMLElement)) return;
+    const isF = maybeCell.classList.contains('filler');
+    this._ionDrive.classList.add('active');
+    this._setIonGlow(isF ? '200px' : '900px');
+    this._play('hover', { volume: isF ? 0.04 : 0.25, playbackRate: isF ? 0.5 : 1 });
+    EventBus.emit(EVENT_KEYS.INPUT_HOVER, { filler: isF });
+  }
+
+  private _onMouseOut(e: MouseEvent) {
+    const maybe = (e.target as Element).closest('.cell');
+    if (maybe instanceof HTMLElement && this._isInteractingAllowed) {
+      this._ionDrive.classList.remove('active');
+      this._setIonGlow('700px');
+    }
+  }
+
+  private _onScrollEnd() {
+    this._isScrolling = false;
+    this._unlockInteractions();
+    this._saveState();
+    EventBus.emit(EVENT_KEYS.NAV_SCROLL_END, { top: this._viewport.scrollTop });
+    setCSS(document.documentElement, { '--chroma-dist': 0 });
+  }
+
+  private _onScroll() {
+    if (!this._isScrolling) {
+      this._lockInteractions();
+      EventBus.emit(EVENT_KEYS.NAV_SCROLL_START, { top: this._viewport.scrollTop });
+      this._play('scroll');
+    }
+
+    this._isScrolling = true;
+    if (!this.ticking) {
+      globalThis.requestAnimationFrame(() => {
+        this._render();
+        this._handleParallax();
+        const velocity = Math.abs(this._viewport.scrollTop - this._lastScrollPos);
+        if (velocity > 1) setCSS(document.documentElement, { '--chroma-dist': Math.min(12, velocity / 10) });
+        this._lastScrollPos = this._viewport.scrollTop;
+        this.ticking = false;
+      });
+      this.ticking = true;
+    }
+
+    this._handleScrollEnd();
+  }
+
+  private _onClick(e: MouseEvent) {
+    if (!this._isInteractingAllowed) return;
+    this._particles.spawn(e.clientX, e.clientY, false);
+    this._play('beep', { volume: 0.15 });
+    EventBus.emit(EVENT_KEYS.INPUT_CLICK, { x: e.clientX, y: e.clientY });
+  }
+
+  private _onResize() {
+    this.yearHeight = globalThis.innerHeight;
+    this._canvas.style.height = `${this.totalYears * this.yearHeight}px`;
+    this._activeYears.forEach((block) => {
+      this.observer?.unobserve(block);
+      block.remove();
+    });
+    this._activeYears.clear();
+    this._particles.resize?.();
+    this.jumpToToday(true);
+  }
+
+  private _cursorLoop() {
+    if (!this.animationsEnabled || !this._mouse || !this._current) return;
+    if (globalThis.matchMedia('(pointer: coarse)').matches) return;
+    this._current.x += (this._mouse.x - this._current.x) * OdysseyConfig.physics.cursorInertia;
+    this._current.y += (this._mouse.y - this._current.y) * OdysseyConfig.physics.cursorInertia;
+    document.documentElement.style.setProperty('--ion-x', String(this._current.x));
+    document.documentElement.style.setProperty('--ion-y', String(this._current.y));
+    EventBus.emit(EVENT_KEYS.AUDIO_UPDATE_SPATIAL_POSITION, { x: this._current.x, y: this._current.y });
+    globalThis.requestAnimationFrame(() => this._cursorLoop());
+  }
+
+  private _handleParallax() {
+    if (!this.animationsEnabled) return;
+    const year = this._getCurrentYearFromScroll();
+    const b = this._activeYears.get(year);
+    if (b) {
+      const offset = (this._viewport.scrollTop % this.yearHeight) - this.yearHeight / 2;
+      const wm = b.querySelector('.watermark-embedded');
+      if (wm instanceof HTMLElement) wm.style.transform = `translate3d(0, ${offset * 0.06}px, 0)`;
+    }
+  }
+
+  private _render() {
+    if (!this.animationsEnabled) return;
+    const currentIdx = Math.floor(this._viewport.scrollTop / this.yearHeight);
+    const baseYear = this._today.getFullYear() + (currentIdx - this._baseYearOffset);
+    for (let i = -1; i <= 1; i++) {
+      const targetYear = baseYear + i;
+      const targetYPos = (currentIdx + i) * this.yearHeight;
+      this._drawYear(targetYear, targetYPos);
+    }
+  }
+
+  private _drawYear(year: number, yPos: number) {
+    if (this._activeYears.has(year)) {
+      const existing = this._activeYears.get(year);
+      if (existing) existing.style.top = `${yPos}px`;
+      return;
+    }
+
+    const block = document.createElement('section');
+    block.className = 'year-block';
+    block.style.top = `${yPos}px`;
+    block.style.zIndex = String(year);
+    block.dataset.year = String(year);
+
+    const jan1 = new Date(year, 0, 1);
+    const days = this._isLeapYear(year) ? 366 : 365;
+
+    const vw = globalThis.innerWidth,
+      vh = globalThis.innerHeight;
+    let cols = vw >= 600 ? Math.ceil(Math.ceil(Math.sqrt(373 * (vw / vh))) / 7) * 7 : 7;
+    let gO = this._isRandomMode ? Math.floor(jan1.getTime() / 86400000) % cols : (jan1.getDay() + 6) % 7;
+
+    const rows = Math.ceil((days + gO) / cols);
+    const isSc = vh / rows < 60;
+    if (isSc) block.classList.add('is-scrolling');
+
+    const cont = document.createElement('div');
+    cont.className = 'grid-container';
+    cont.style.overflowY = isSc ? 'auto' : 'hidden';
+    const wm = document.createElement('div');
+    wm.className = 'watermark-embedded';
+    wm.innerText = String(year);
+    cont.append(wm);
+
+    const grid = document.createElement('div');
+    grid.className = 'grid-layer';
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateRows = isSc ? `repeat(${rows}, minmax(60px, 1fr))` : `repeat(${rows}, 1fr)`;
+    grid.style.height = isSc ? 'auto' : '100%';
+
+    const frag = document.createDocumentFragment();
+    const itD = new Date(year, 0, 1 - gO);
+
+    for (let s = 0; s < cols * rows; s++) {
+      const isMonthStart = itD.getDate() === 1 && itD.getFullYear() === year;
+      const isGutter = s === gO && itD.getFullYear() === year;
+      const label = isMonthStart || isGutter ? OdysseyConfig.temporal.monthsShort[itD.getMonth()] : undefined;
+      const cell = this._createCell(new Date(itD), year, label, isMonthStart);
+      frag.append(cell);
+      itD.setDate(itD.getDate() + 1);
+    }
+
+    grid.append(frag);
+    cont.append(grid);
+    block.append(cont);
+    this._canvas.append(block);
+    this._activeYears.set(year, block);
+
+    this.observer!.observe(block);
+  }
+
+  private _setMode(r: boolean) {
+    if (this._isRandomMode === r) return;
+    this._isRandomMode = r;
+    this._activeYears.forEach((b) => {
+      this.observer!.unobserve(b);
+      b.remove();
+    });
+    this._activeYears.clear();
+    this._render();
+    this._saveState();
+    this._play('beep');
+    EventBus.emit(EVENT_KEYS.NAV_MODE_CHANGED, { isRandomMode: r });
+    showToast(r ? 'Randomized Navigation Mode Activated' : 'Chronological Calendar Mode Activated');
+  }
+
+  private _applyTheme(t: string) {
+    document.documentElement.setAttribute('data-theme', t);
+    document.documentElement.style.colorScheme = t;
+    document.documentElement.dataset.theme = t;
+  }
+
+  private _toggleTheme() {
+    const v = document.getElementById('theme-veil');
+    if (!(v instanceof HTMLElement)) return;
+    v.classList.add('active');
+    setTimeout(() => {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = current === 'light' ? 'dark' : 'light';
+      this._applyTheme(next);
+      localStorage.setItem(STORAGE_KEYS.THEME, next);
+      EventBus.emit(EVENT_KEYS.UI_THEME_CHANGED, { theme: next });
+      this._saveState();
+      setTimeout(() => v.classList.remove('active'), 200);
+    }, 400);
+  }
+
+  private _isLeapYear(y: number) {
+    return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  }
+  private _dateKey(d: Date) {
+    return d.toDateString();
+  }
+
+  private _getSafeScrollTop(): number {
+    return this._viewport.scrollTop === 0 ? this.startY : this._viewport.scrollTop;
+  }
+
+  private _getCurrentScrollIdxYear(): { currentScroll: number; currentIdx: number; currentYear: number } {
+    const currentScroll = this._getSafeScrollTop();
+    const currentIdx = Math.round(currentScroll / this.yearHeight);
+    const currentYear = this._today.getFullYear() + (currentIdx - this._baseYearOffset);
+    return { currentScroll, currentIdx, currentYear };
+  }
+
+  private _getPreRenderWindowSize(distance: number): number {
+    if (distance > 50) return 5;
+    if (distance > 20) return 3;
+    return 2;
+  }
+
+  private _reobserveActiveYears() {
+    if (!this.observer) return;
+    try {
+      for (const b of this._activeYears.values()) this.observer.observe(b);
+    } catch {}
+  }
+
+  private _beginWarp(warpClass?: string) {
+    this._isWarping = true;
+    this._lockInteractions();
+    this._ionDrive.classList.add('jumping');
+    if (warpClass) this._viewport.classList.add(warpClass);
+    this._viewport.classList.add(GridArchitect.SCROLL_SNAP_CLASS);
+  }
+
+  private _endWarp(...warpClasses: string[]) {
+    if (warpClasses && warpClasses.length) {
+      this._viewport.classList.remove(...warpClasses);
+    }
+    this._ionDrive.classList.remove('jumping');
+    this._isWarping = false;
+    this._unlockInteractions();
+    this._viewport.classList.remove(GridArchitect.SCROLL_SNAP_CLASS);
+  }
+
+  private _play(key: string, options?: Record<string, any>) {
+    EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key, options });
+  }
+
+  private _scrollContainerToCell(block: HTMLElement, dateKey?: string, isInitial?: boolean) {
+    const container = block.querySelector('.grid-container');
+    if (!(container instanceof HTMLElement)) return;
+
+    if (dateKey) {
+      const cells = block.querySelectorAll('.cell');
+      const targetCell = Array.from(cells).find((c) => (c as HTMLElement).dataset.dateRef === dateKey) as
+        | HTMLElement
+        | undefined;
+      if (targetCell instanceof HTMLElement) {
+        globalThis.requestAnimationFrame(() => {
+          try {
+            container.scrollTo({ top: targetCell.offsetTop - globalThis.innerHeight / 3, behavior: 'smooth' });
+          } catch {
+            container.scrollTop = Math.max(0, targetCell.offsetTop - globalThis.innerHeight / 3);
+          }
+        });
+      } else {
+      }
+      return;
+    }
+
+    const todayCell = block.querySelector('.cell.today');
+    if (todayCell instanceof HTMLElement) {
+      globalThis.requestAnimationFrame(() => {
+        try {
+          container.scrollTo({
+            top: todayCell.offsetTop - globalThis.innerHeight / 3,
+            behavior: isInitial ? 'auto' : 'smooth',
+          });
+        } catch {
+          container.scrollTop = Math.max(0, todayCell.offsetTop - globalThis.innerHeight / 3);
+        }
+      });
+    }
+  }
+
+  private _warpTo(
+    targetYear: number,
+    targetScrollTop: number,
+    opts?: {
+      distance?: number;
+      isInitial?: boolean;
+      warpClass?: string;
+      duration?: number;
+      landingDateKey?: string;
+      emitAudioKey?: string;
+    }
+  ) {
+    const { currentYear } = this._getCurrentScrollIdxYear();
+    const distance = opts?.distance ?? Math.abs(targetYear - currentYear);
+    const isInitial = !!opts?.isInitial;
+    const warpClass = opts?.warpClass ?? (distance > 20 ? 'warping-far' : distance >= 2 ? 'warping-near' : '');
+    const duration = opts?.duration ?? (isInitial ? 0 : distance > 20 ? 2000 : distance >= 2 ? 1200 : 500);
+
+    EventBus.emit(EVENT_KEYS.NAV_WARP_START, { currentYear, targetYear, distance, isInitial });
+    this._beginWarp(warpClass || undefined);
+
+    if (this.observer && !this._observerPaused) {
+      try {
+        this.observer.disconnect();
+        this._observerPaused = true;
+      } catch {
+        this._observerPaused = false;
+      }
+    }
+
+    if (opts?.emitAudioKey) this._play(opts.emitAudioKey);
+
+    const targetIdx = Math.round(targetScrollTop / this.yearHeight);
+    const windowSize = this._getPreRenderWindowSize(distance);
+    for (let y = targetYear - windowSize; y <= targetYear + windowSize; y++) {
+      const idx = targetIdx + (y - targetYear);
+      const yPos = idx * this.yearHeight;
+      this._drawYear(y, yPos);
+    }
+
+    const immediateBlock =
+      this._activeYears.get(targetYear) ||
+      (this._canvas.querySelector(`.year-block[data-year="${targetYear}"]`) as HTMLElement | null);
+    if (immediateBlock) {
+      immediateBlock.dataset.keep = 'true';
+      setTimeout(() => {
+        if (immediateBlock && immediateBlock.dataset) delete immediateBlock.dataset.keep;
+      }, duration + 500);
+    }
+
+    globalThis.requestAnimationFrame(() => {
+      try {
+        this._viewport.scrollTo({ top: targetScrollTop, behavior: isInitial ? 'auto' : 'smooth' });
+      } catch {
+        this._viewport.scrollTop = targetScrollTop;
+      }
+    });
+
+    setTimeout(() => {
+      this._endWarp('warping-far', 'warping-near');
+      this._viewport.scrollTop = targetScrollTop;
+
+      let block =
+        this._activeYears.get(targetYear) ||
+        (this._canvas.querySelector(`.year-block[data-year="${targetYear}"]`) as HTMLElement | null);
+      if (block) {
+        block.dataset.keep = 'true';
+        this._scrollContainerToCell(block, opts?.landingDateKey, isInitial);
+        setTimeout(() => {
+          if (block && block.dataset) delete block.dataset.keep;
+        }, 800);
+      } else {
+        setTimeout(() => {
+          const retry = this._canvas.querySelector(`.year-block[data-year="${targetYear}"]`) as HTMLElement | null;
+          if (retry) {
+            retry.dataset.keep = 'true';
+            this._scrollContainerToCell(retry, opts?.landingDateKey, isInitial);
+            setTimeout(() => {
+              if (retry && retry.dataset) delete retry.dataset.keep;
+            }, 800);
+          }
+        }, 120);
+      }
+
+      this._saveState();
+      this._render();
+
+      const actualTop = this._viewport.scrollTop;
+      const actualIdx = Math.round(actualTop / this.yearHeight);
+      const actualYear = this._today.getFullYear() + (actualIdx - this._baseYearOffset);
+      if (this._observerPaused) {
+        this._reobserveActiveYears();
+        this._observerPaused = false;
+      }
+      EventBus.emit(EVENT_KEYS.NAV_WARP_END, { targetYear, duration });
+      EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'beep' });
+    }, duration);
+  }
+
+  private _createCell(d: Date, year: number, label?: string, isTopLabel?: boolean) {
+    const cell = document.createElement('div');
+    const dateKey = this._dateKey(d);
+    cell.dataset.dateRef = dateKey;
+    const isM = d.getFullYear() === year;
+    const fC = !isM ? (d.getFullYear() < year ? 'filler-past' : 'filler-future') : '';
+    const isRealToday = dateKey === this._dateKey(this._today);
+    const isQuantumLanding = this._quantumLandingDate && dateKey === this._dateKey(this._quantumLandingDate);
+
+    cell.className = `cell ${!isM ? 'filler ' + fC : ''} ${isRealToday ? 'today' : ''} ${
+      isQuantumLanding ? 'quantum-arrival' : ''
+    } ${isM && d.getDate() === 1 ? 'month-start' : ''} ${
+      isM && (d.getDay() === 0 || d.getDay() === 6) ? 'weekend' : ''
+    } ${isM && d.getDay() === 1 ? 'week-start' : ''}`;
+
+    const monthLabel = label ?? (isM && d.getDate() === 1 ? OdysseyConfig.temporal.monthsShort[d.getMonth()] : '');
+    cell.innerHTML = `
+      <div class="cell-content">
+        <span class="info-meta ${isTopLabel ? 'top-label' : ''}">
+          ${monthLabel}
+        </span>
+        <span class="date-num">${d.getDate()}</span>
+        <span class="info-meta">${isM ? OdysseyConfig.temporal.daysShort[d.getDay()] : ''}</span>
+      </div>`;
+
+    return cell;
+  }
+}

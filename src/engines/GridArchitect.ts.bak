@@ -1,0 +1,459 @@
+import EventBus from '../core';
+import { OdysseyConfig } from '../core/Config';
+import { EVENT_KEYS, STORAGE_KEYS } from '../core/Keys';
+import { showToast } from '../ui/Toast';
+import { setCSS } from '../utils/domUtils';
+import { debounce } from '../utils/functionUtils';
+import ParticleEngine from './ParticleSystem';
+
+export default class GridArchitect {
+  private readonly _activeYears = new Map<number, HTMLElement>();
+  private readonly _today = new Date();
+  private readonly _particles = new ParticleEngine();
+  private readonly _viewport: HTMLElement = document.getElementById('viewport') as HTMLElement;
+  private readonly _canvas: HTMLElement = document.getElementById('infinite-canvas') as HTMLElement;
+  private readonly _ionDrive: HTMLElement = document.getElementById('ion-drive') as HTMLElement;
+
+  private _lastScrollPos = 0;
+  private _isScrolling = false;
+  private _isWarping = false;
+  private _isInteractingAllowed = true;
+  private readonly _mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  private readonly _current = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  private _lastMouse = { x: 0, y: 0 };
+  private _isRandomMode = OdysseyConfig.display.defaultMode === 'random';
+
+  // State Virtual Scroll
+  totalYears: number;
+  yearHeight: number;
+  private _baseYearOffset: number; // Index tengah untuk "Today"
+  animationsEnabled: boolean;
+  observer: IntersectionObserver | null = null;
+  ticking = false;
+
+  static readonly shortcutMap: Record<string, (e: KeyboardEvent, self: GridArchitect) => void> = {
+    'ctrl+.': (e: KeyboardEvent, self: GridArchitect) => {
+      e.preventDefault();
+      EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'theme' });
+      self._toggleTheme();
+    },
+    m: (_e: KeyboardEvent, self: GridArchitect) => {
+      EventBus.emit(EVENT_KEYS.AUDIO_TOGGLE_MASTER);
+    },
+    home: (e: KeyboardEvent, self: GridArchitect) => {
+      e.preventDefault();
+      self.jumpToToday();
+    },
+    r: (_e: KeyboardEvent, self: GridArchitect) => {
+      self._setMode(true);
+    },
+    c: (_e: KeyboardEvent, self: GridArchitect) => {
+      self._setMode(false);
+    },
+  };
+
+  constructor() {
+    this.totalYears = OdysseyConfig.temporal.totalYears;
+    this.yearHeight = window.innerHeight;
+    // Tentukan titik tengah secara logis
+    this._baseYearOffset = Math.floor(this.totalYears / 2);
+    this.animationsEnabled = true;
+
+    this._loadState();
+
+    EventBus.on(EVENT_KEYS.AUDIO_TOGGLED, (p?: { enabled: boolean }) => {
+      const payload = p ?? { enabled: false };
+      showToast(payload.enabled ? 'Ion Drive System Online' : 'Audio Systems Disabled');
+      this._saveState();
+    });
+
+    EventBus.on(EVENT_KEYS.ANIMATION_SET_ENABLED, (enabled: boolean) => {
+      this.animationsEnabled = enabled;
+      if (enabled) {
+        this._cursorLoop();
+      }
+    });
+
+    setTimeout(() => void this._runBoot(), 0);
+  }
+
+  private _loadState() {
+    const saved = localStorage.getItem(STORAGE_KEYS.ODYSSEY_STATE);
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        this._isRandomMode = state.isRandomMode ?? this._isRandomMode;
+        // Kita tidak lagi memulihkan scrollPosition mentah jika strukturnya berubah,
+        // lebih aman biarkan jumpToToday yang menangani saat boot.
+        EventBus.emit(EVENT_KEYS.STATE_RESTORED, state);
+      } catch (e) {
+        console.error('State restore failed', e);
+      }
+    }
+  }
+
+  private _saveState() {
+    try {
+      const audioEnabled = localStorage.getItem(STORAGE_KEYS.AUDIO_ENABLED) !== 'false';
+      const state = {
+        theme: document.documentElement.dataset.theme,
+        isRandomMode: this._isRandomMode,
+        scrollPosition: this._viewport?.scrollTop,
+        audioEnabled,
+        lastVisit: new Date().toISOString(),
+      };
+      localStorage.setItem(STORAGE_KEYS.ODYSSEY_STATE, JSON.stringify(state));
+      EventBus.emit(EVENT_KEYS.STATE_SAVED, state);
+    } catch (e) {
+      console.error('State save failed', e);
+    }
+  }
+
+  private async _runBoot() {
+    const bar = document.getElementById('load-progress');
+    const steps = [
+      { p: 40, t: 'Initializing Navigation Systems' },
+      { p: 80, t: 'Calibrating Audio Processors' },
+      { p: 100, t: 'Systems Ready for Departure' },
+    ];
+    for (const s of steps) {
+      await new Promise((r) => setTimeout(r, 400));
+      if (bar instanceof HTMLElement) bar.style.width = `${s.p}%`;
+      const statusEl = document.getElementById('load-status');
+      if (statusEl instanceof HTMLElement) statusEl.innerText = s.t;
+    }
+    this._init();
+    EventBus.emit(EVENT_KEYS.APP_BOOTED, { architect: this });
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen instanceof HTMLElement) setTimeout(() => loadingScreen.classList.add('hidden'), 600);
+  }
+
+  private _init() {
+    this._applyTheme(localStorage.getItem(STORAGE_KEYS.THEME) || 'dark');
+
+    // Set height canvas secara linear
+    this._canvas.style.height = `${this.totalYears * this.yearHeight}px`;
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this._saveState();
+    });
+    window.addEventListener('beforeunload', () => this._saveState());
+
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          const b = e.target as HTMLElement;
+          const year = Number.parseInt(b.dataset.year || '0', 10);
+
+          if (e.isIntersecting) {
+            b.classList.add('active');
+            if ('vibrate' in navigator) navigator.vibrate?.(8);
+          } else {
+            b.classList.remove('active');
+            // Cleanup: Hapus tahun yang sudah jauh dari pandangan (buffer 2 tahun)
+            const currentYear = this._getCurrentYearFromScroll();
+            if (Math.abs(year - currentYear) > 2) {
+              this._activeYears.delete(year);
+              this.observer!.unobserve(b);
+              b.remove();
+            }
+          }
+        });
+      },
+      { threshold: 0.01, rootMargin: '50% 0px' }
+    );
+
+    this._setupListeners();
+    this._cursorLoop();
+
+    // Inisialisasi posisi awal ke hari ini
+    requestAnimationFrame(() => {
+      this.jumpToToday(true);
+    });
+  }
+
+  private _getCurrentYearFromScroll(): number {
+    const idx = Math.floor(this._viewport.scrollTop / this.yearHeight);
+    return this._today.getFullYear() + (idx - this._baseYearOffset);
+  }
+
+  jumpToToday(isInitial = false) {
+    if (this._isWarping) return;
+
+    const targetYear = this._today.getFullYear();
+    const currentYear = this._getCurrentYearFromScroll();
+    const distance = Math.abs(targetYear - currentYear);
+
+    // Target scroll selalu ke base offset (tengah)
+    const todayScrollTop = this._baseYearOffset * this.yearHeight;
+
+    this._isWarping = true;
+    this._lockInteractions();
+
+    EventBus.emit(EVENT_KEYS.NAV_WARP_START, { currentYear, targetYear, distance, isInitial });
+    this._ionDrive.classList.add('jumping');
+
+    let duration = isInitial ? 0 : OdysseyConfig.display.warpDuration;
+    let warpClass = '';
+
+    if (!isInitial) {
+      if (distance > 20) {
+        warpClass = 'warping-far';
+        duration = 1800;
+        EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'jump', options: { volume: 0.8 } });
+      } else if (distance >= 1) {
+        warpClass = 'warping-near';
+        duration = 1200;
+        EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'warp', options: { volume: 0.5 } });
+      }
+    }
+
+    if (warpClass) this._viewport.classList.add(warpClass);
+
+    this._viewport.scrollTo({
+      top: todayScrollTop,
+      behavior: isInitial ? 'auto' : 'smooth',
+    });
+
+    if (!isInitial) {
+      showToast(distance > 20 ? 'Initiating Interstellar Jump Sequence' : 'Executing Local Warp Protocol');
+    }
+
+    setTimeout(() => {
+      this._viewport.classList.remove('warping-far', 'warping-near');
+      this._ionDrive.classList.remove('jumping');
+
+      // Sinkronisasi render setelah scroll berhenti
+      this._render();
+
+      const b = this._activeYears.get(targetYear);
+      if (b) {
+        const t = b.querySelector('.cell.today');
+        const c = b.querySelector('.grid-container');
+        if (t instanceof HTMLElement && c instanceof HTMLElement) {
+          c.scrollTo({ top: t.offsetTop - window.innerHeight / 3, behavior: 'smooth' });
+        }
+      }
+
+      this._isWarping = false;
+      this._unlockInteractions();
+      EventBus.emit(EVENT_KEYS.NAV_WARP_END, { targetYear, duration });
+    }, duration + 100);
+  }
+
+  private _setupListeners() {
+    globalThis.addEventListener(
+      'pointermove',
+      (e: PointerEvent) => {
+        this._mouse.x = e.clientX;
+        this._mouse.y = e.clientY;
+        const velocity = Math.sqrt(
+          Math.pow(e.clientX - this._lastMouse.x, 2) + Math.pow(e.clientY - this._lastMouse.y, 2)
+        );
+        if (velocity > OdysseyConfig.physics.exhaustThreshold) {
+          this._particles.spawn(e.clientX, e.clientY, true);
+        }
+        this._lastMouse = { x: e.clientX, y: e.clientY };
+      },
+      { passive: true }
+    );
+
+    this._viewport.addEventListener(
+      'scroll',
+      () => {
+        if (!this._isScrolling && !this._isWarping) {
+          this._lockInteractions();
+          EventBus.emit(EVENT_KEYS.NAV_SCROLL_START, { top: this._viewport.scrollTop });
+        }
+
+        this._isScrolling = true;
+
+        if (!this.ticking) {
+          window.requestAnimationFrame(() => {
+            this._render();
+            this._handleParallax();
+
+            const velocity = Math.abs(this._viewport.scrollTop - this._lastScrollPos);
+            const chromaAmount = Math.min(12, velocity / 10);
+            setCSS(document.documentElement, { '--chroma-dist': chromaAmount });
+
+            this._lastScrollPos = this._viewport.scrollTop;
+            this.ticking = false;
+          });
+          this.ticking = true;
+        }
+        this._handleScrollEnd();
+      },
+      { passive: true }
+    );
+
+    globalThis.addEventListener('keydown', (e: KeyboardEvent) => {
+      let k = e.key.toLowerCase();
+      if (e.ctrlKey) k = 'ctrl+' + k;
+      const handler = (GridArchitect.shortcutMap as any)[k];
+      if (handler) handler(e, this);
+    });
+
+    globalThis.addEventListener('resize', () => {
+      this.yearHeight = window.innerHeight;
+      this._canvas.style.height = `${this.totalYears * this.yearHeight}px`;
+      this._render();
+    });
+  }
+
+  private _handleScrollEnd = debounce(() => {
+    this._isScrolling = false;
+    if (!this._isWarping) this._unlockInteractions();
+    setCSS(document.documentElement, { '--chroma-dist': 0 });
+    this._saveState();
+  }, 150);
+
+  private _render() {
+    if (!this.animationsEnabled) return;
+
+    const scrollTop = this._viewport.scrollTop;
+    const currentIdx = Math.floor(scrollTop / this.yearHeight);
+    const baseYear = this._today.getFullYear() + (currentIdx - this._baseYearOffset);
+
+    // Render buffer: tahun ini, sebelumnya, dan sesudahnya
+    for (let i = -1; i <= 1; i++) {
+      const targetYear = baseYear + i;
+      const targetIdx = currentIdx + i;
+      this._drawYear(targetYear, targetIdx * this.yearHeight);
+    }
+  }
+
+  private _drawYear(year: number, yPos: number) {
+    if (this._activeYears.has(year)) {
+      // Update posisi jika perlu (antisipasi resize)
+      const existing = this._activeYears.get(year);
+      if (existing) existing.style.top = `${yPos}px`;
+      return;
+    }
+
+    const block = document.createElement('section');
+    block.className = 'year-block';
+    block.style.top = `${yPos}px`;
+    block.dataset.year = String(year);
+
+    const jan1 = new Date(year, 0, 1);
+    const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    const days = isLeap ? 366 : 365;
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    let cols = vw >= 600 ? Math.ceil(Math.ceil(Math.sqrt(373 * (vw / vh))) / 7) * 7 : 7;
+    let gO = this._isRandomMode ? Math.floor(jan1.getTime() / 86400000) % cols : (jan1.getDay() + 6) % 7;
+
+    const rows = Math.ceil((days + gO) / cols);
+    const isSc = vh / rows < 60;
+    if (isSc) block.classList.add('is-scrolling');
+
+    const cont = document.createElement('div');
+    cont.className = 'grid-container';
+
+    const wm = document.createElement('div');
+    wm.className = 'watermark-embedded';
+    wm.innerText = String(year);
+    cont.append(wm);
+
+    const grid = document.createElement('div');
+    grid.className = 'grid-layer';
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateRows = isSc ? `repeat(${rows}, minmax(60px, 1fr))` : `repeat(${rows}, 1fr)`;
+
+    const frag = document.createDocumentFragment();
+    const itD = new Date(year, 0, 1 - gO);
+
+    for (let s = 0; s < cols * rows; s++) {
+      const isM = itD.getFullYear() === year;
+      const cell = document.createElement('div');
+      let fC = !isM ? (itD.getFullYear() < year ? 'filler-past' : 'filler-future') : '';
+
+      cell.className = `cell ${!isM ? 'filler ' + fC : ''} ${
+        itD.toDateString() === this._today.toDateString() && isM ? 'today' : ''
+      } ${isM && itD.getDate() === 1 ? 'month-start' : ''}`;
+
+      cell.innerHTML = `
+        <div class="cell-content">
+            <span class="info-meta">${
+              isM && (itD.getDate() === 1 || s === gO) ? OdysseyConfig.temporal.monthsShort[itD.getMonth()] : ''
+            }</span>
+            <span class="date-num">${itD.getDate()}</span>
+            <span class="info-meta">${isM ? OdysseyConfig.temporal.daysShort[itD.getDay()] : ''}</span>
+        </div>`;
+
+      frag.append(cell);
+      itD.setDate(itD.getDate() + 1);
+    }
+
+    grid.append(frag);
+    cont.append(grid);
+    block.append(cont);
+    this._canvas.append(block);
+    this._activeYears.set(year, block);
+    this.observer?.observe(block);
+  }
+
+  private _handleParallax() {
+    const currentYear = this._getCurrentYearFromScroll();
+    const b = this._activeYears.get(currentYear);
+    if (b && !this._isScrolling) {
+      const offset = (this._viewport.scrollTop % this.yearHeight) - this.yearHeight / 2;
+      const wm = b.querySelector('.watermark-embedded');
+      if (wm instanceof HTMLElement) wm.style.transform = `translate3d(0, ${offset * 0.06}px, 0)`;
+    }
+  }
+
+  private _cursorLoop() {
+    if (!this.animationsEnabled) return;
+    this._current.x += (this._mouse.x - this._current.x) * OdysseyConfig.physics.cursorInertia;
+    this._current.y += (this._mouse.y - this._current.y) * OdysseyConfig.physics.cursorInertia;
+    document.documentElement.style.setProperty('--ion-x', String(this._current.x));
+    document.documentElement.style.setProperty('--ion-y', String(this._current.y));
+    requestAnimationFrame(() => this._cursorLoop());
+  }
+
+  private _lockInteractions() {
+    this._isInteractingAllowed = false;
+    this._viewport.classList.add('is-locked');
+    setCSS(document.documentElement, { '--ion-glow': '200px' });
+  }
+
+  private _unlockInteractions() {
+    this._isInteractingAllowed = true;
+    this._viewport.classList.remove('is-locked');
+    setCSS(document.documentElement, { '--ion-glow': '700px' });
+  }
+
+  private _setMode(r: boolean) {
+    if (this._isRandomMode === r) return;
+    this._isRandomMode = r;
+    this._activeYears.forEach((b) => {
+      this.observer?.unobserve(b);
+      b.remove();
+    });
+    this._activeYears.clear();
+    this._render();
+    this._saveState();
+    showToast(r ? 'Randomized Mode' : 'Chronological Mode');
+  }
+
+  private _applyTheme(t: string) {
+    document.documentElement.dataset.theme = t;
+    document.documentElement.style.colorScheme = t;
+  }
+
+  private _toggleTheme() {
+    const v = document.getElementById('theme-veil');
+    if (!v) return;
+    v.classList.add('active');
+    setTimeout(() => {
+      const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+      this._applyTheme(next);
+      this._saveState();
+      setTimeout(() => v.classList.remove('active'), 200);
+    }, 400);
+  }
+}

@@ -1,0 +1,908 @@
+import EventBus from '../core';
+
+import { OdysseyConfig } from '../core/Config';
+
+import { EVENT_KEYS, STORAGE_KEYS } from '../core/Keys';
+
+import { showToast } from '../ui/Toast';
+
+import { setCSS } from '../utils/domUtils';
+
+import { debounce } from '../utils/functionUtils';
+
+import ParticleEngine from './ParticleSystem';
+
+export default class GridArchitect {
+  private readonly _activeYears = new Map<number, HTMLElement>();
+
+  private readonly _today = new Date();
+
+  private readonly _particles = new ParticleEngine();
+
+  private readonly _viewport: HTMLElement = document.getElementById('viewport') as HTMLElement;
+
+  private readonly _canvas: HTMLElement = document.getElementById('infinite-canvas') as HTMLElement;
+
+  private readonly _ionDrive: HTMLElement = document.getElementById('ion-drive') as HTMLElement; // Konfigurasi Virtual Scroll
+
+  private _lastScrollPos = 0;
+
+  private _isScrolling = false;
+
+  private _isWarping = false;
+
+  private _isInteractingAllowed = true;
+
+  private readonly _mouse = { x: globalThis.innerWidth / 2, y: globalThis.innerHeight / 2 };
+  private readonly _current = { x: globalThis.innerWidth / 2, y: globalThis.innerHeight / 2 };
+
+  private _lastMouse = { x: 0, y: 0 };
+
+  private _isRandomMode = OdysseyConfig.display.defaultMode === 'random'; // State Dinamis
+
+  totalYears: number;
+
+  yearHeight: number;
+
+  startY: number;
+
+  private _baseYearOffset: number; // Index tengah untuk "Today"
+
+  animationsEnabled: boolean;
+
+  observer: IntersectionObserver | null = null;
+
+  ticking = false;
+
+  private _handleKeyboardInput() {
+    globalThis.addEventListener('keydown', (e: KeyboardEvent) => {
+      let k = e.key.toLowerCase();
+      if (e.ctrlKey) k = 'ctrl+' + k;
+
+      // Map Shortcut Internal
+      switch (k) {
+        case 'ctrl+.':
+          e.preventDefault();
+          EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'theme' });
+          this._toggleTheme();
+          break;
+
+        case 'm':
+          EventBus.emit(EVENT_KEYS.AUDIO_TOGGLE_MASTER);
+          break;
+
+        case 'home':
+          e.preventDefault();
+          this.jumpToToday();
+          break;
+
+        case 'r':
+          this._setMode(true);
+          break;
+
+        case 'c':
+          this._setMode(false);
+          break;
+
+        case 'x':
+          this.jumpToRandom();
+          break;
+      }
+    });
+  }
+
+  jumpToToday(isInitial = false) {
+    if (this._isWarping && !isInitial) return;
+
+    // 1. Sinkronisasi Dimensi
+    this.yearHeight = globalThis.innerHeight;
+    const targetScrollTop = this._baseYearOffset * this.yearHeight;
+    const targetYear = this._today.getFullYear();
+
+    // 2. Kalkulasi Jarak untuk menentukan intensitas animasi
+    const currentScroll = this._viewport.scrollTop === 0 ? this.startY : this._viewport.scrollTop;
+    const currentIdx = Math.round(currentScroll / this.yearHeight);
+    const currentYear = this._today.getFullYear() + (currentIdx - this._baseYearOffset);
+    const distance = Math.abs(targetYear - currentYear);
+
+    // Jika sudah tepat di lokasi, abaikan (kecuali saat boot/initial)
+    if (distance === 0 && Math.abs(this._viewport.scrollTop - targetScrollTop) < 1 && !isInitial) return;
+
+    this._isWarping = true;
+    this._lockInteractions();
+
+    EventBus.emit(EVENT_KEYS.NAV_WARP_START, {
+      currentYear,
+      targetYear,
+      distance,
+      isInitial,
+    });
+
+    this._ionDrive.classList.add('jumping');
+
+    // 3. Tentukan Durasi dan Efek Visual
+    let warpClass = '';
+    let duration = isInitial ? 0 : 2000;
+
+    if (distance > 20) {
+      warpClass = 'warping-far';
+      if (!isInitial) EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'jump', options: { volume: 0.8 } });
+    } else if (distance >= 2) {
+      warpClass = 'warping-near';
+      if (!isInitial) EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'warp', options: { volume: 0.5 } });
+      duration = 1200;
+    } else {
+      if (!isInitial) EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'scroll' });
+      duration = isInitial ? 0 : 500;
+    }
+
+    if (warpClass) this._viewport.classList.add(warpClass);
+
+    // 4. Pre-render & Scroll Utama
+    this._drawYear(targetYear, targetScrollTop);
+
+    this._viewport.scrollTo({
+      top: targetScrollTop,
+      behavior: isInitial ? 'auto' : 'smooth',
+    });
+
+    if (!isInitial) {
+      showToast(distance > 20 ? 'Executing Quantum Home Sequence' : 'Returning to Local Timeline');
+    }
+
+    // 5. Arrival Logic (Internal Grid Sync)
+    setTimeout(() => {
+      this._viewport.classList.remove('warping-far', 'warping-near');
+      this._ionDrive.classList.remove('jumping');
+
+      // Force precise pixel alignment
+      this._viewport.scrollTop = targetScrollTop;
+
+      // SINKRONISASI TANGGAL: Cari cell 'today' di dalam grid container
+      const block = this._activeYears.get(targetYear);
+      if (block) {
+        const todayCell = block.querySelector('.cell.today');
+        const container = block.querySelector('.grid-container');
+
+        if (todayCell instanceof HTMLElement && container instanceof HTMLElement) {
+          container.scrollTo({
+            top: todayCell.offsetTop - globalThis.innerHeight / 3, // Posisi 1/3 layar agar tidak terlalu mepet atas
+            behavior: isInitial ? 'auto' : 'smooth',
+          });
+        }
+      }
+
+      this._isWarping = false;
+      this._unlockInteractions();
+      this._render();
+      this._saveState();
+
+      if (!isInitial) {
+        EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'beep' });
+        EventBus.emit(EVENT_KEYS.NAV_WARP_END, { targetYear, duration });
+      }
+    }, duration);
+  }
+
+  private _saveInterval: any;
+
+  private _quantumLandingDate: Date | null = null;
+
+  jumpToRandom() {
+    if (this._isWarping) return;
+
+    this.yearHeight = globalThis.innerHeight;
+
+    // 1. Pilih Tahun Acak
+    const randomOffset = Math.floor(Math.random() * this.totalYears);
+    const targetYear = this._today.getFullYear() + (randomOffset - this._baseYearOffset);
+    const targetScrollTop = randomOffset * this.yearHeight;
+
+    // 2. Pilih Tanggal Acak (landingDate)
+    const isLeap = (targetYear % 4 === 0 && targetYear % 100 !== 0) || targetYear % 400 === 0;
+    const randomDayOfYear = Math.floor(Math.random() * (isLeap ? 366 : 365)) + 1;
+
+    // Variabel ini harus didefinisikan di sini agar bisa diakses di dalam setTimeout nanti
+    const landingDate = new Date(targetYear, 0, 1);
+    landingDate.setDate(randomDayOfYear);
+
+    // Simpan ke class property untuk referensi _drawYear
+    this._quantumLandingDate = landingDate;
+
+    // 3. Kalkulasi Jarak
+    const safeCurrentScroll = this._viewport.scrollTop === 0 ? this.startY : this._viewport.scrollTop;
+    const currentIdx = Math.round(safeCurrentScroll / this.yearHeight);
+    const currentYear = this._today.getFullYear() + (currentIdx - this._baseYearOffset);
+    const distance = Math.abs(targetYear - currentYear);
+
+    this._isWarping = true;
+    this._lockInteractions();
+
+    showToast(`Quantum Jump: Heading to ${landingDate.toDateString()}`, 3000);
+
+    EventBus.emit(EVENT_KEYS.NAV_WARP_START, {
+      currentYear,
+      targetYear,
+      distance,
+      isInitial: false,
+    });
+
+    this._ionDrive.classList.add('jumping');
+    this._viewport.classList.add('warping-far');
+
+    setTimeout(() => {
+      EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'jump', options: { volume: 0.9 } });
+
+      this._drawYear(targetYear, targetScrollTop);
+
+      this._viewport.scrollTo({
+        top: targetScrollTop,
+        behavior: 'smooth',
+      });
+
+      setTimeout(() => {
+        this._viewport.classList.remove('warping-far');
+        this._ionDrive.classList.remove('jumping');
+        this._viewport.scrollTop = targetScrollTop;
+
+        // 4. SINKRONISASI INTERNAL (Menggunakan landingDate yang sudah didefinisikan di atas)
+        const block = this._activeYears.get(targetYear);
+        if (block) {
+          const dateStr = landingDate.toDateString(); // Tidak akan Error lagi
+          const cells = block.querySelectorAll('.cell');
+
+          const targetCell = Array.from(cells).find((c) => (c as any)._dateRef === dateStr);
+          const container = block.querySelector('.grid-container');
+
+          if (targetCell instanceof HTMLElement && container instanceof HTMLElement) {
+            container.scrollTo({
+              top: targetCell.offsetTop - globalThis.innerHeight / 3,
+              behavior: 'smooth',
+            });
+          }
+        }
+
+        this._isWarping = false;
+        this._saveState();
+        this._unlockInteractions();
+        this._render();
+
+        EventBus.emit(EVENT_KEYS.NAV_WARP_END, { targetYear, duration: 2000 });
+        EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'beep' });
+      }, 2000);
+    }, 100);
+  }
+
+  constructor() {
+    this.totalYears = OdysseyConfig.temporal.totalYears;
+
+    this.yearHeight = globalThis.innerHeight; // Virtual Positioning: Kita tetapkan "Today" berada di tengah totalYears
+
+    this._baseYearOffset = Math.floor(this.totalYears / 2);
+
+    this.startY = this._baseYearOffset * this.yearHeight;
+
+    this.animationsEnabled = true;
+
+    this._loadState();
+
+    EventBus.on(EVENT_KEYS.AUDIO_TOGGLED, (p?: { enabled: boolean }) => {
+      const payload = p ?? { enabled: false };
+
+      showToast(payload.enabled ? 'Ion Drive System Online' : 'Audio Systems Disabled');
+
+      this._saveState();
+    });
+
+    EventBus.on(EVENT_KEYS.ANIMATION_SET_ENABLED, (enabled: boolean) => {
+      this.animationsEnabled = enabled;
+
+      if (enabled) {
+        this._cursorLoop();
+      }
+    });
+
+    setTimeout(() => void this._runBoot(), 0);
+  } // Tambahkan properti di atas class:
+
+  private _isPendingSave = false;
+
+  private _saveState() {
+    // JANGAN simpan jika sedang warping agar koordinat tidak "melayang"
+
+    if (this._isWarping || this._isPendingSave) return;
+
+    this._isPendingSave = true;
+
+    globalThis.setTimeout(() => {
+      try {
+        const currentScroll = this._viewport?.scrollTop || this.startY; // Simpan index tahun saat ini secara matematis, bukan hanya piksel mentah // Ini memastikan posisi tetap sama meskipun innerHeight berubah
+
+        const currentYearIndex = Math.round(currentScroll / this.yearHeight);
+
+        const state = {
+          theme: document.documentElement.dataset.theme,
+
+          isRandomMode: this._isRandomMode, // Gunakan index tahun agar lebih stabil saat restore
+
+          yearIndex: currentYearIndex,
+
+          scrollPosition: currentScroll,
+
+          audioEnabled: localStorage.getItem(STORAGE_KEYS.AUDIO_ENABLED) !== 'false',
+
+          lastVisit: new Date().toISOString(),
+        };
+
+        localStorage.setItem(STORAGE_KEYS.ODYSSEY_STATE, JSON.stringify(state));
+
+        EventBus.emit(EVENT_KEYS.STATE_SAVED, state);
+      } finally {
+        this._isPendingSave = false;
+      }
+    }, 500);
+  }
+
+  private _loadState() {
+    const saved = localStorage.getItem(STORAGE_KEYS.ODYSSEY_STATE);
+
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+
+        this._isRandomMode = state.isRandomMode ?? this._isRandomMode; // Prioritaskan yearIndex jika ada untuk akurasi lintas resolusi layar
+
+        if (state.yearIndex !== undefined) {
+          this.startY = state.yearIndex * this.yearHeight;
+        } else if (state.scrollPosition && !isNaN(state.scrollPosition)) {
+          this.startY = state.scrollPosition;
+        }
+
+        EventBus.emit(EVENT_KEYS.STATE_RESTORED, state);
+      } catch (e) {
+        console.error('State restore failed', e);
+      }
+    }
+  }
+
+  public destroy() {
+    this.animationsEnabled = false;
+
+    globalThis.clearInterval(this._saveInterval);
+
+    this.observer?.disconnect(); // Matikan juga listener EventBus jika memungkinkan
+
+    EventBus.off(EVENT_KEYS.AUDIO_TOGGLED);
+
+    EventBus.off(EVENT_KEYS.ANIMATION_SET_ENABLED);
+
+    this._activeYears.forEach((b) => b.remove());
+
+    this._activeYears.clear();
+  }
+
+  private async _runBoot() {
+    const bar = document.getElementById('load-progress');
+
+    const steps = [
+      { p: 40, t: 'Initializing Navigation Systems' },
+
+      { p: 80, t: 'Calibrating Audio Processors' },
+
+      { p: 100, t: 'Systems Ready for Departure' },
+    ];
+
+    for (const s of steps) {
+      await new Promise((r) => setTimeout(r, 400));
+
+      if (bar instanceof HTMLElement) bar.style.width = `${s.p}%`;
+
+      const statusEl = document.getElementById('load-status');
+
+      if (statusEl instanceof HTMLElement) statusEl.innerText = s.t;
+    }
+
+    this._init();
+
+    EventBus.emit(EVENT_KEYS.APP_BOOTED, { architect: this });
+
+    const loadingScreen = document.getElementById('loading-screen');
+
+    if (loadingScreen instanceof HTMLElement) setTimeout(() => loadingScreen.classList.add('hidden'), 600);
+  }
+
+  private _init() {
+    this._applyTheme(localStorage.getItem(STORAGE_KEYS.THEME) || 'dark'); // 1. Tetapkan tinggi kanvas
+
+    this._canvas.style.height = `${this.totalYears * this.yearHeight}px`; // 2. Gunakan requestAnimationFrame untuk memastikan DOM sudah siap dihitung
+
+    requestAnimationFrame(() => {
+      // Set posisi scroll ke Today (atau posisi tersimpan dari startY)
+
+      this._viewport.scrollTop = this.startY;
+
+      this._render(); // 3. STABILISASI: Berikan sedikit jeda sebelum mengizinkan lompatan otomatis // Ini memastikan kalkulasi distance di jumpToToday tidak kacau (0 vs startY)
+
+      setTimeout(() => {
+        this._lastScrollPos = this._viewport.scrollTop;
+
+        this.jumpToToday(true); // Jalankan sinkronisasi awal
+      }, 50);
+    }); // Event Listeners tetap seperti sebelumnya
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this._saveState();
+    });
+
+    globalThis.addEventListener('beforeunload', () => this._saveState());
+
+    this._saveInterval = globalThis.setInterval(() => this._saveState(), 30000);
+
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          const b = e.target as HTMLElement;
+
+          const year = Number.parseInt(b.dataset.year || '0', 10);
+
+          const wasActive = b.classList.contains('active');
+
+          b.classList.toggle('active', e.isIntersecting);
+
+          if (e.isIntersecting && !wasActive && 'vibrate' in navigator) {
+            navigator.vibrate?.(8);
+          }
+
+          if (!e.isIntersecting) {
+            const currentYear = this._getCurrentYearFromScroll();
+
+            if (Math.abs(year - currentYear) > 2) {
+              this._activeYears.delete(year);
+
+              this.observer!.unobserve(b);
+
+              b.remove();
+            }
+          }
+        });
+      },
+
+      { threshold: 0.01, rootMargin: '50% 0px' }
+    );
+
+    this._setupListeners();
+
+    this._cursorLoop();
+  }
+
+  private _getCurrentYearFromScroll(): number {
+    // Validasi: Jika posisi 0, gunakan startY (Today) sebagai referensi awal
+
+    const currentScroll = this._viewport.scrollTop === 0 ? this.startY : this._viewport.scrollTop;
+
+    const currentIdx = Math.round(currentScroll / this.yearHeight);
+
+    return this._today.getFullYear() + (currentIdx - this._baseYearOffset);
+  }
+
+  private _setIonGlow(value: string) {
+    document.documentElement.style.setProperty('--ion-glow', value);
+  }
+
+  private _lockInteractions() {
+    this._isInteractingAllowed = false;
+
+    this._viewport.classList.add('is-locked');
+
+    this._setIonGlow('200px');
+
+    EventBus.emit(EVENT_KEYS.AUDIO_SET_BUSY, true);
+  }
+
+  private _unlockInteractions() {
+    setTimeout(() => {
+      this._isInteractingAllowed = true;
+
+      EventBus.emit(EVENT_KEYS.AUDIO_SET_BUSY, false);
+
+      this._viewport.classList.remove('is-locked');
+
+      this._setIonGlow('700px');
+    }, 400);
+  }
+
+  private _setupListeners() {
+    // Panggil handler keyboard baru
+    this._handleKeyboardInput();
+
+    globalThis.addEventListener(
+      'pointermove',
+
+      (e: PointerEvent) => {
+        this._mouse.x = e.clientX; // 'this' akan merujuk ke GridArchitect
+        this._mouse.y = e.clientY;
+
+        const velocity = Math.sqrt(
+          Math.pow(e.clientX - this._lastMouse.x, 2) + Math.pow(e.clientY - this._lastMouse.y, 2)
+        );
+
+        if (velocity > OdysseyConfig.physics.exhaustThreshold) {
+          this._particles.spawn(e.clientX, e.clientY, true);
+        }
+
+        EventBus.emit(EVENT_KEYS.AUDIO_INJECT_ENGINE_POWER, velocity);
+
+        EventBus.emit(EVENT_KEYS.INPUT_POINTER_MOVE, { x: e.clientX, y: e.clientY, velocity });
+
+        this._lastMouse = { x: e.clientX, y: e.clientY };
+
+        EventBus.emit(EVENT_KEYS.AUDIO_RESET_IDLE_TIMER);
+      },
+
+      { passive: true }
+    );
+
+    document.addEventListener(
+      'mouseover',
+
+      (e: MouseEvent) => {
+        if (!this._isInteractingAllowed || this._isWarping || this._isScrolling) return;
+
+        const maybeCell = (e.target as Element).closest('.cell');
+
+        if (maybeCell instanceof HTMLElement) {
+          const isF = maybeCell.classList.contains('filler');
+
+          this._ionDrive.classList.add('active');
+
+          this._setIonGlow(isF ? '200px' : '900px');
+
+          EventBus.emit(EVENT_KEYS.AUDIO_PLAY, {
+            key: 'hover',
+
+            options: { volume: isF ? 0.04 : 0.25, playbackRate: isF ? 0.5 : 1 },
+          });
+
+          EventBus.emit(EVENT_KEYS.INPUT_HOVER, { filler: isF });
+        }
+      },
+
+      { passive: true }
+    );
+
+    document.addEventListener(
+      'mouseout',
+
+      (e: MouseEvent) => {
+        const maybe = (e.target as Element).closest('.cell');
+
+        if (maybe instanceof HTMLElement && this._isInteractingAllowed) {
+          this._ionDrive.classList.remove('active');
+
+          this._setIonGlow('700px');
+        }
+      },
+
+      { passive: true }
+    );
+
+    const handleScrollEnd = debounce(() => {
+      this._isScrolling = false;
+
+      this._unlockInteractions(); // Pemicu autosave yang lebih natural: simpan saat user berhenti scroll
+
+      this._saveState();
+
+      EventBus.emit(EVENT_KEYS.NAV_SCROLL_END, { top: this._viewport.scrollTop });
+
+      setCSS(document.documentElement, { '--chroma-dist': 0 });
+    }, 150);
+
+    this._viewport.addEventListener(
+      'scroll',
+
+      () => {
+        if (!this._isScrolling) {
+          this._lockInteractions();
+
+          EventBus.emit(EVENT_KEYS.NAV_SCROLL_START, { top: this._viewport.scrollTop });
+
+          EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'scroll' });
+        }
+
+        this._isScrolling = true;
+
+        if (!this.ticking) {
+          globalThis.requestAnimationFrame(() => {
+            this._render();
+
+            this._handleParallax();
+
+            const velocity = Math.abs(this._viewport.scrollTop - this._lastScrollPos);
+
+            if (velocity > 1) {
+              const chromaAmount = Math.min(12, velocity / 10);
+
+              setCSS(document.documentElement, { '--chroma-dist': chromaAmount });
+            }
+
+            this._lastScrollPos = this._viewport.scrollTop;
+
+            this.ticking = false;
+          });
+
+          this.ticking = true;
+        }
+
+        handleScrollEnd();
+      },
+
+      { passive: true }
+    );
+
+    globalThis.addEventListener('keydown', (e: KeyboardEvent) => {
+      let k = e.key.toLowerCase();
+
+      if (e.ctrlKey) k = 'ctrl+' + k;
+
+      this._handleKeyboardShortcut(e);
+
+      if (typeof handler === 'function') handler(e, this);
+    });
+
+    document.addEventListener('click', (e: MouseEvent) => {
+      if (!this._isInteractingAllowed) return;
+
+      this._particles.spawn(e.clientX, e.clientY, false);
+
+      EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'beep', options: { volume: 0.15 } });
+
+      EventBus.emit(EVENT_KEYS.INPUT_CLICK, { x: e.clientX, y: e.clientY });
+    });
+
+    globalThis.addEventListener('resize', () => {
+      this.yearHeight = globalThis.innerHeight;
+
+      this._canvas.style.height = `${this.totalYears * this.yearHeight}px`; // TAMBAHKAN INI: Bersihkan tahun lama karena jumlah kolom (cols) mungkin berubah
+
+      this._activeYears.forEach((block) => {
+        this.observer?.unobserve(block);
+
+        block.remove();
+      });
+
+      this._activeYears.clear();
+
+      this._particles.resize?.(); // Re-sync posisi agar tetap di tahun yang sama setelah resize
+
+      this.jumpToToday(true);
+    });
+  }
+
+  private _handleKeyboardShortcut(e: KeyboardEvent) {
+    let k = e.key.toLowerCase();
+    if (e.ctrlKey) k = 'ctrl+' + k;
+
+    // Logika switch case lebih performan dan mudah di-debug
+    switch (k) {
+      case 'ctrl+.':
+        e.preventDefault();
+        EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'theme' });
+        this._toggleTheme();
+        break;
+
+      case 'm':
+        EventBus.emit(EVENT_KEYS.AUDIO_TOGGLE_MASTER);
+        break;
+
+      case 'home':
+        e.preventDefault();
+        this.jumpToToday();
+        break;
+
+      case 'r':
+        this._setMode(true);
+        break;
+
+      case 'c':
+        this._setMode(false);
+        break;
+
+      case 'x':
+        this.jumpToRandom();
+        break;
+    }
+  }
+
+  private _cursorLoop() {
+    if (!this.animationsEnabled || !this._mouse || !this._current) return;
+
+    if (globalThis.matchMedia('(pointer: coarse)').matches) return;
+
+    // Linear Interpolation (Lerp) untuk pergerakan halus
+    this._current.x += (this._mouse.x - this._current.x) * OdysseyConfig.physics.cursorInertia;
+    this._current.y += (this._mouse.y - this._current.y) * OdysseyConfig.physics.cursorInertia;
+
+    document.documentElement.style.setProperty('--ion-x', String(this._current.x));
+    document.documentElement.style.setProperty('--ion-y', String(this._current.y));
+
+    EventBus.emit(EVENT_KEYS.AUDIO_UPDATE_SPATIAL_POSITION, {
+      x: this._current.x,
+      y: this._current.y,
+    });
+
+    globalThis.requestAnimationFrame(() => this._cursorLoop());
+  }
+
+  private _handleParallax() {
+    if (!this.animationsEnabled) return;
+
+    const year = this._getCurrentYearFromScroll();
+
+    const b = this._activeYears.get(year);
+
+    if (b) {
+      const offset = (this._viewport.scrollTop % this.yearHeight) - this.yearHeight / 2;
+
+      const wm = b.querySelector('.watermark-embedded');
+
+      if (wm instanceof HTMLElement) wm.style.transform = `translate3d(0, ${offset * 0.06}px, 0)`;
+    }
+  }
+
+  private _render() {
+    if (!this.animationsEnabled) return;
+
+    const currentIdx = Math.floor(this._viewport.scrollTop / this.yearHeight);
+
+    const baseYear = this._today.getFullYear() + (currentIdx - this._baseYearOffset); // Windowing: Render tahun saat ini, sebelumnya, dan sesudahnya saja
+
+    for (let i = -1; i <= 1; i++) {
+      const targetYear = baseYear + i;
+
+      const targetYPos = (currentIdx + i) * this.yearHeight;
+
+      this._drawYear(targetYear, targetYPos);
+    }
+  }
+
+  private _drawYear(year: number, yPos: number) {
+    if (this._activeYears.has(year)) {
+      const existing = this._activeYears.get(year);
+      if (existing) existing.style.top = `${yPos}px`;
+      return;
+    }
+
+    const block = document.createElement('section');
+    block.className = 'year-block';
+    block.style.top = `${yPos}px`;
+    block.style.zIndex = String(year);
+    block.dataset.year = String(year);
+
+    const jan1 = new Date(year, 0, 1);
+    const days = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 366 : 365;
+
+    const vw = globalThis.innerWidth,
+      vh = globalThis.innerHeight;
+
+    let cols = vw >= 600 ? Math.ceil(Math.ceil(Math.sqrt(373 * (vw / vh))) / 7) * 7 : 7;
+    let gO = this._isRandomMode ? Math.floor(jan1.getTime() / 86400000) % cols : (jan1.getDay() + 6) % 7;
+
+    const rows = Math.ceil((days + gO) / cols);
+    const isSc = vh / rows < 60;
+    if (isSc) block.classList.add('is-scrolling');
+
+    const cont = document.createElement('div');
+    cont.className = 'grid-container';
+    cont.style.overflowY = isSc ? 'auto' : 'hidden';
+
+    const wm = document.createElement('div');
+    wm.className = 'watermark-embedded';
+    wm.innerText = String(year);
+    cont.append(wm);
+
+    const grid = document.createElement('div');
+    grid.className = 'grid-layer';
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateRows = isSc ? `repeat(${rows}, minmax(60px, 1fr))` : `repeat(${rows}, 1fr)`;
+    grid.style.height = isSc ? 'auto' : '100%';
+
+    const frag = document.createDocumentFragment();
+    const itD = new Date(year, 0, 1 - gO);
+
+    for (let s = 0; s < cols * rows; s++) {
+      const isM = itD.getFullYear() === year;
+      const cell = document.createElement('div');
+
+      // Simpan referensi tanggal pada objek elemen untuk lookup cepat
+      const dateKey = itD.toDateString();
+      (cell as any)._dateRef = dateKey;
+
+      let fC = !isM ? (itD.getFullYear() < year ? 'filler-past' : 'filler-future') : '';
+
+      // LOGIKA PENANDAAN: Today vs Landing Date
+      const isRealToday = dateKey === this._today.toDateString();
+      const isQuantumLanding = this._quantumLandingDate && dateKey === this._quantumLandingDate.toDateString();
+
+      cell.className = `cell ${!isM ? 'filler ' + fC : ''} 
+      ${isRealToday ? 'today' : ''} 
+      ${isQuantumLanding ? 'quantum-arrival' : ''} 
+      ${isM && itD.getDate() === 1 ? 'month-start' : ''} 
+      ${isM && (itD.getDay() === 0 || itD.getDay() === 6) ? 'weekend' : ''} 
+      ${isM && itD.getDay() === 1 ? 'week-start' : ''}`;
+
+      cell.innerHTML = `
+        <div class="cell-content">
+            <span class="info-meta ${itD.getDate() === 1 && isM ? 'top-label' : ''}">
+                ${isM && (itD.getDate() === 1 || s === gO) ? OdysseyConfig.temporal.monthsShort[itD.getMonth()] : ''}
+            </span>
+            <span class="date-num">${itD.getDate()}</span>
+            <span class="info-meta">${isM ? OdysseyConfig.temporal.daysShort[itD.getDay()] : ''}</span>
+        </div>`;
+
+      frag.append(cell);
+      itD.setDate(itD.getDate() + 1);
+    }
+
+    grid.append(frag);
+    cont.append(grid);
+    block.append(cont);
+    this._canvas.append(block);
+    this._activeYears.set(year, block);
+    this.observer!.observe(block);
+  }
+
+  private _setMode(r: boolean) {
+    if (this._isRandomMode === r) return;
+
+    this._isRandomMode = r;
+
+    this._activeYears.forEach((b) => {
+      this.observer!.unobserve(b);
+
+      b.remove();
+    });
+
+    this._activeYears.clear();
+
+    this._render();
+
+    this._saveState();
+
+    EventBus.emit(EVENT_KEYS.AUDIO_PLAY, { key: 'beep' });
+
+    EventBus.emit(EVENT_KEYS.NAV_MODE_CHANGED, { isRandomMode: r });
+
+    showToast(r ? 'Randomized Navigation Mode Activated' : 'Chronological Calendar Mode Activated');
+  }
+
+  private _applyTheme(t: string) {
+    document.documentElement.dataset.theme = t;
+
+    document.documentElement.style.colorScheme = t;
+  }
+
+  private _toggleTheme() {
+    const v = document.getElementById('theme-veil');
+
+    if (!(v instanceof HTMLElement)) return;
+
+    v.classList.add('active');
+
+    setTimeout(() => {
+      const current = document.documentElement.dataset.theme;
+
+      const next = current === 'light' ? 'dark' : 'light';
+
+      this._applyTheme(next);
+
+      localStorage.setItem('theme', next);
+
+      EventBus.emit(EVENT_KEYS.UI_THEME_CHANGED, { theme: next });
+
+      this._saveState();
+
+      setTimeout(() => v.classList.remove('active'), 200);
+    }, 400);
+  }
+}
