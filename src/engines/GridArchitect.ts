@@ -321,6 +321,7 @@ interface WarpOptions {
   isInitial?: boolean;
   landingDateKey?: string;
   emitAudioKey?: string;
+  duration?: number;
 }
 
 export class NavigationController {
