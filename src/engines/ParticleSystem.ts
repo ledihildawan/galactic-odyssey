@@ -16,7 +16,7 @@ interface Particle {
 export default class ParticleEngine {
   private _buffers: Record<string, WebGLBuffer | null> | null = null;
   private _canvas: HTMLCanvasElement = document.createElement('canvas');
-  private _gl: WebGLRenderingContext | null = ParticleEngine._getGLContext();
+  private _gl: WebGLRenderingContext | null = null;
   private _particles: Particle[] = [];
   private _program: WebGLProgram | null = null;
   private _uniLocs: { isLight: WebGLUniformLocation | null; res: WebGLUniformLocation | null } | null = null;
@@ -58,8 +58,14 @@ export default class ParticleEngine {
 
     document.body.appendChild(this._canvas);
 
+    // Ambil context WebGL dari this._canvas
+    this._gl = this._canvas.getContext('webgl', {
+      alpha: true,
+      antialias: false,
+      depth: false,
+      preserveDrawingBuffer: false,
+    });
     if (!this._gl) return;
-
     const gl = this._gl;
 
     this._buffers = {
@@ -290,11 +296,5 @@ export default class ParticleEngine {
     }
 
     return [0.5, 0.5, 0.5];
-  }
-
-  static _getGLContext(): WebGLRenderingContext | null {
-    const canvas = document.createElement('canvas');
-
-    return canvas.getContext('webgl', { alpha: true, antialias: false, depth: false, preserveDrawingBuffer: false });
   }
 }
