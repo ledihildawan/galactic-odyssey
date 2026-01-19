@@ -30,7 +30,7 @@ function makeShortWeekdayNames(locale: string) {
 
 const _locale = detectLocale();
 
-export const OdysseyConfig: OdysseyConfigShape = {
+export const OdysseyConfig = {
   temporal: {
     weekStart: 1,
     totalYears: 2000,
@@ -46,4 +46,4 @@ export const OdysseyConfig: OdysseyConfigShape = {
     idleDelay: 30000,
   },
   physics: { cursorInertia: 0.12, hoverThrottle: 120, exhaustThreshold: 15 },
-};
+} satisfies OdysseyConfigShape;

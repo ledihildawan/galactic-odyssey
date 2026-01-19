@@ -4,6 +4,8 @@ import EventBus from './';
 import { OdysseyConfig } from './Config';
 import { EVENT_KEYS, STORAGE_KEYS } from './Keys';
 
+type SfxKey = keyof typeof sfxManifest;
+
 export default class AudioEngine {
   ambientSources: Map<string, AudioBufferSourceNode> = new Map();
   audioContext: AudioContext | null = null;
@@ -21,37 +23,38 @@ export default class AudioEngine {
   constructor() {
     this.initAudioContext();
 
-    this.unbinds.push(EventBus.on(EVENT_KEYS.AUDIO_PLAY, (p) => this.play(p?.key, p?.options)));
-    this.unbinds.push(
+    const handlers = [
+      EventBus.on(EVENT_KEYS.AUDIO_PLAY, (p) => {
+        if (!p?.key) return;
+        this.play(p.key as SfxKey, p?.options);
+      }),
       EventBus.on(EVENT_KEYS.AUDIO_TOGGLE_MASTER, async () => {
         const enabled = await this.toggleMaster();
+
         EventBus.emit(EVENT_KEYS.AUDIO_TOGGLED, { enabled });
-      })
-    );
-    this.unbinds.push(EventBus.on(EVENT_KEYS.AUDIO_SET_BUSY, (v) => this.setBusy(v)));
-    this.unbinds.push(EventBus.on(EVENT_KEYS.AUDIO_INJECT_ENGINE_POWER, (v) => this.injectEnginePower(v)));
-    this.unbinds.push(
-      EventBus.on(EVENT_KEYS.AUDIO_UPDATE_SPATIAL_POSITION, (p) => this.updateSpatialPosition(p.x, p.y))
-    );
-    this.unbinds.push(EventBus.on(EVENT_KEYS.AUDIO_RESET_IDLE_TIMER, () => this.resetIdleTimer()));
-    this.unbinds.push(EventBus.on(EVENT_KEYS.AUDIO_SET_ENABLED, (enabled: boolean) => this.setEnabled(enabled)));
-    this.unbinds.push(
+      }),
+      EventBus.on(EVENT_KEYS.AUDIO_SET_BUSY, (v) => this.setBusy(v)),
+      EventBus.on(EVENT_KEYS.AUDIO_INJECT_ENGINE_POWER, (v) => this.injectEnginePower(v)),
+      EventBus.on(EVENT_KEYS.AUDIO_UPDATE_SPATIAL_POSITION, (p) => this.updateSpatialPosition(p.x, p.y)),
+      EventBus.on(EVENT_KEYS.AUDIO_RESET_IDLE_TIMER, () => this.resetIdleTimer()),
+      EventBus.on(EVENT_KEYS.AUDIO_SET_ENABLED, (enabled: boolean) => this.setEnabled(enabled)),
       EventBus.on(EVENT_KEYS.POWER_SAVING_CHANGED, ({ enabled }) => {
         this.setEnabled(!enabled);
-      })
-    );
+      }),
+    ];
+
+    this.unbinds.push(...handlers);
   }
 
   private initAudioContext() {
     const initialize = async () => {
       if (this.initialized) return;
 
-      this.audioContext = new window.AudioContext();
-
-      this.masterGain = this.audioContext.createGain();
-      this.masterGain.gain.value = OdysseyConfig.audio.masterVolume;
+      this.audioContext = new globalThis.AudioContext();
 
       this.panner = this.audioContext.createPanner();
+      this.masterGain = this.audioContext.createGain();
+
       this.panner.distanceModel = 'inverse';
       this.panner.maxDistance = 10000;
       this.panner.panningModel = 'HRTF';
@@ -59,6 +62,9 @@ export default class AudioEngine {
       this.panner.rolloffFactor = 1;
 
       this.panner.connect(this.masterGain);
+
+      this.masterGain.gain.value = OdysseyConfig.audio.masterVolume;
+
       this.masterGain.connect(this.audioContext.destination);
 
       await this.loadAssets();
@@ -67,14 +73,14 @@ export default class AudioEngine {
     };
 
     ['click', 'keydown', 'touchstart'].forEach((event) => {
-      window.addEventListener(event, initialize as EventListener, { once: true });
+      globalThis.addEventListener(event, initialize as EventListener, { once: true, passive: true });
     });
   }
 
   injectEnginePower(velocity: number) {
     if (!this.enabled || !this.initialized) return;
 
-    const power = Math.min(velocity / 120, 1.0);
+    const power = Math.min(velocity / 120, 1);
 
     if (power > 0.15) {
       const now = Date.now();
@@ -90,40 +96,45 @@ export default class AudioEngine {
     }
 
     if (this.masterGain && this.audioContext) {
-      const targetVolume = OdysseyConfig.audio.masterVolume * (1.0 + power * 0.4);
+      const targetVolume = OdysseyConfig.audio.masterVolume * (1 + power * 0.4);
 
       this.masterGain.gain.setTargetAtTime(targetVolume, this.audioContext.currentTime, 0.08);
     }
   }
 
   private async loadAssets() {
-    const manifest = sfxManifest as Record<string, string>;
+    const manifest = sfxManifest;
 
     for (const [key, file] of Object.entries(manifest)) {
-      try {
-        const response = await fetch(`${this.path}${file}`);
+      const response = await fetch(`${this.path}${file}`);
 
-        const buffer = await response.arrayBuffer();
+      const buffer = await response.arrayBuffer();
 
-        if (this.audioContext) {
-          this.sounds.set(key, await this.audioContext.decodeAudioData(buffer));
-        }
-      } catch {}
+      if (this.audioContext) {
+        this.sounds.set(key, await this.audioContext.decodeAudioData(buffer));
+      }
     }
   }
 
   updateSpatialPosition(x: number, y: number) {
     if (!this.initialized || !this.panner || !this.audioContext) return;
 
-    const px = (x / window.innerWidth) * 2 - 1;
-    const py = -(y / window.innerHeight) * 2 + 1;
+    const px = (x / globalThis.innerWidth) * 2 - 1;
+    const py = -(y / globalThis.innerHeight) * 2 + 1;
 
     this.panner.positionX.setTargetAtTime(px, this.audioContext.currentTime, 0.1);
     this.panner.positionY.setTargetAtTime(py, this.audioContext.currentTime, 0.1);
     this.panner.positionZ.setTargetAtTime(0.5, this.audioContext.currentTime, 0.1);
   }
 
-  play(key: string, options: { volume?: number; playbackRate?: number; loop?: boolean } = {}) {
+  play(
+    key: SfxKey,
+    options: { volume?: number; playbackRate?: number; loop?: boolean } = {} satisfies {
+      volume?: number;
+      playbackRate?: number;
+      loop?: boolean;
+    },
+  ) {
     if (!this.enabled || !this.initialized || !this.sounds.has(key)) return;
 
     if (this.isBusy && key === 'hover') return;
@@ -134,9 +145,9 @@ export default class AudioEngine {
     source.buffer = this.sounds.get(key) || null;
 
     const gain = this.audioContext.createGain();
-    gain.gain.value = options.volume ?? 1.0;
+    gain.gain.value = options.volume ?? 1;
 
-    source.playbackRate.value = options.playbackRate || 1.0;
+    source.playbackRate.value = options.playbackRate || 1;
 
     source.connect(gain);
 
@@ -161,15 +172,13 @@ export default class AudioEngine {
 
     const nextEnabled = !this.enabled;
 
-    try {
-      localStorage.setItem(STORAGE_KEYS.AUDIO_ENABLED, String(nextEnabled));
-    } catch {}
+    localStorage.setItem(STORAGE_KEYS.AUDIO_ENABLED, String(nextEnabled));
 
     if (nextEnabled) {
       this.enabled = true;
 
       try {
-        if (this.audioContext && this.audioContext.state === 'suspended') {
+        if (this.audioContext?.state === 'suspended') {
           await this.audioContext.resume();
         }
 
@@ -207,14 +216,14 @@ export default class AudioEngine {
     return this.enabled;
   }
 
-  private playImmediate(key: string, options: { volume?: number } = {}) {
+  private playImmediate(key: SfxKey, options: { volume?: number } = {} satisfies { volume?: number }) {
     if (!this.initialized || !this.sounds.has(key) || !this.audioContext) return;
 
     const source = this.audioContext.createBufferSource();
     source.buffer = this.sounds.get(key) || null;
 
     const gain = this.audioContext.createGain();
-    gain.gain.value = options.volume ?? 1.0;
+    gain.gain.value = options.volume ?? 1;
 
     source.connect(gain);
 
@@ -244,8 +253,10 @@ export default class AudioEngine {
             resolve();
           }
         }, 50);
+
         setTimeout(() => {
           clearInterval(check);
+
           resolve();
         }, 5000);
       }
@@ -263,11 +274,11 @@ export default class AudioEngine {
   private triggerRandomIdleClip() {
     if (!this.enabled || this.isBusy) return;
 
-    const clips = [
-      { key: 'engine', volume: 0.15 },
-      { key: 'pulse', volume: 0.15 },
-      { key: 'stellar', volume: 0.2 },
-      { key: 'wind', volume: 0.2 },
+    const clips: Array<{ key: SfxKey; volume: number }> = [
+      { key: 'engine' as SfxKey, volume: 0.15 },
+      { key: 'pulse' as SfxKey, volume: 0.15 },
+      { key: 'stellar' as SfxKey, volume: 0.2 },
+      { key: 'wind' as SfxKey, volume: 0.2 },
     ];
 
     const clip = clips[Math.floor(Math.random() * clips.length)];
@@ -286,7 +297,7 @@ export default class AudioEngine {
       this.masterGain.gain.setTargetAtTime(
         busy ? 0.1 : OdysseyConfig.audio.masterVolume,
         this.audioContext.currentTime,
-        0.5
+        0.5,
       );
     }
   }

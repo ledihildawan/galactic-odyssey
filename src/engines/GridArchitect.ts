@@ -45,9 +45,9 @@ export default class GridArchitect {
   private _isWarping = false;
   private _isInteractingAllowed = true;
 
-  private readonly _mouse: Vec2 = { x: globalThis.innerWidth / 2, y: globalThis.innerHeight / 2 };
-  private readonly _current: Vec2 = { x: globalThis.innerWidth / 2, y: globalThis.innerHeight / 2 };
-  private _lastMouse: Vec2 = { x: 0, y: 0 };
+  private readonly _mouse = { x: globalThis.innerWidth / 2, y: globalThis.innerHeight / 2 } satisfies Vec2;
+  private readonly _current = { x: globalThis.innerWidth / 2, y: globalThis.innerHeight / 2 } satisfies Vec2;
+  private _lastMouse = { x: 0, y: 0 } satisfies Vec2;
 
   private _boundPointerMove?: (e: PointerEvent) => void;
   private _boundMouseOver?: (e: MouseEvent) => void;

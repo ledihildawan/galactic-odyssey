@@ -9,7 +9,7 @@ export interface GlobalStateShape {
   setWarping(val: boolean): void;
 }
 
-export const GlobalState: GlobalStateShape = {
+export const GlobalState = {
   isWarping: false,
   currentYear: 2024,
   theme: 'dark',
@@ -19,6 +19,6 @@ export const GlobalState: GlobalStateShape = {
     this.isWarping = val;
     bus.emit(EVENT_KEYS.STATE_WARP, val);
   },
-};
+} satisfies GlobalStateShape;
 
 export default GlobalState;

@@ -4,7 +4,7 @@ import { setCSS } from '../utils/domUtils';
 export function query(id: string): HTMLElement | null {
   return document.getElementById(id);
 }
-export function createElement(tag: string, props: Record<string, string> = {}): HTMLElement {
+export function createElement(tag: string, props = {} satisfies Record<string, string>): HTMLElement {
   const el = document.createElement(tag);
   Object.entries(props).forEach(([k, v]) => el.setAttribute(k, v));
   return el;

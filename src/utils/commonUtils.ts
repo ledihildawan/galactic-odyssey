@@ -1,5 +1,5 @@
 export function log(
-  context: { options?: { dev?: boolean } } = {},
+  context = {} satisfies { options?: { dev?: boolean } },
   status: 'log' | 'warn' | 'error' | 'info' = 'log',
   ...message: any[]
 ) {

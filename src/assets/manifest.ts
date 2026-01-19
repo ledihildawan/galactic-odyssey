@@ -1,4 +1,4 @@
-const manifest: Record<string, string> = {
+const manifest = {
   jump: 'jump-to-today.mp3',
   scroll: 'year-change-scroll-transition.mp3',
   warp: 'fast-scroll-wrap-mode.mp3',
@@ -12,6 +12,6 @@ const manifest: Record<string, string> = {
   wind: 'nebula-wind-sweep.mp3',
   engine: 'engine-idle-hum.mp3',
   stellar: 'distant-stellar-ambience.mp3',
-};
+} satisfies Record<string, string>;
 
 export default manifest;

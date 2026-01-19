@@ -11,7 +11,7 @@ const _display = debounce((msg: string, timeout = 2500) => {
   (t as any)._toastTimer = setTimeout(() => t.classList.remove('active'), timeout);
 }, 50);
 
-EventBus.on(EVENT_KEYS.TOAST_SHOW, (payload = { msg: '' }) => {
+EventBus.on(EVENT_KEYS.TOAST_SHOW, (payload = { msg: '' } satisfies { msg?: string; timeout?: number } | string) => {
   const { msg, timeout } = typeof payload === 'string' ? { msg: payload } : payload;
   if (msg) _display(msg, timeout);
 });
