@@ -9,5 +9,5 @@ export function log(
 }
 
 export function uniqueId(prefix = ''): string {
-  return prefix + (+new Date()).toString(16) + ((Math.random() * 100000000) | 0).toString(16);
+  return prefix + Date.now().toString(16) + Math.trunc(Math.random() * 100000000).toString(16);
 }
