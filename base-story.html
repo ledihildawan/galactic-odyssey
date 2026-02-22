@@ -1,0 +1,1651 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Telkomsel Story - The Perfect Masterpiece</title>
+    <style>
+      :root {
+        --brand-red: #ee2d24;
+        --brand-dark: #050505;
+        --surface: #ffffff;
+        --bg-gray: #f8f9fa;
+        --text-main: #111111;
+        --text-sub: #555555;
+        --glass-bg: rgba(20, 20, 20, 0.6);
+        --glass-border: rgba(255, 255, 255, 0.15);
+        --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+        --ease-spring: cubic-bezier(0.34, 1.5, 0.64, 1);
+        --card-width: 420px;
+        --desktop-gap: 40px;
+        --fab-size: 44px;
+        --frame-radius: 12px;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+      }
+      body {
+        background: #0f0f11;
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+        overflow: hidden;
+        color: var(--text-main);
+      }
+
+      /* Point 5: Aksesibilitas (Focus Outline) */
+      .story-excerpt:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--brand-red);
+        outline-offset: 2px;
+      }
+
+      /* =========================================================
+               LAYOUT UTAMA
+               ========================================================= */
+      .layout-wrapper {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100dvh;
+        width: 100vw;
+        touch-action: pan-y;
+        opacity: 0;
+        transition: opacity 0.5s var(--ease-out);
+      }
+      .layout-wrapper.is-ready {
+        opacity: 1;
+      }
+
+      .desktop-slider {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100dvh;
+        width: 100%;
+        transition: padding 0.7s var(--ease-spring);
+      }
+      .story-group-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100dvh;
+        width: 100%;
+        transition: transform 0.6s var(--ease-spring);
+      }
+
+      .story-container {
+        position: relative;
+        height: 100dvh;
+        width: 100%;
+        max-width: calc(100dvh * 9 / 16);
+        min-width: 320px;
+        background: var(--brand-dark);
+        overflow: hidden;
+        z-index: 10;
+        border-radius: var(--frame-radius);
+        transition:
+          border-radius 0.6s var(--ease-out),
+          box-shadow 0.6s var(--ease-out);
+        transform: translateZ(0);
+      }
+
+      .ambient-layer {
+        display: none;
+        position: absolute;
+        top: 5%;
+        left: 0;
+        right: 0;
+        margin: 0 auto;
+        width: 110%;
+        height: 90%;
+        z-index: 1;
+        filter: blur(60px) saturate(150%);
+        opacity: 0.4;
+        pointer-events: none;
+        transition: opacity 0.6s;
+        will-change: opacity, transform;
+        transform: translateZ(0);
+      }
+      #ambientPlayer {
+        width: 100%;
+        height: 100%;
+        border: none;
+        opacity: 0;
+        transition: opacity 0.8s var(--ease-out);
+      }
+      .story-container.is-focused .ambient-layer {
+        opacity: 0.25;
+      }
+
+      .story-viewport {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        background: transparent;
+        overflow: hidden;
+        border-radius: inherit;
+        transition:
+          filter 0.6s var(--ease-out),
+          transform 0.6s var(--ease-out);
+        will-change: filter, transform;
+      }
+      .story-video-wrapper {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--brand-dark);
+      }
+      .story-video-wrapper::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 5;
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0.05) 0,
+          rgba(0, 0, 0, 0) 25%,
+          rgba(0, 0, 0, 0) 50%,
+          rgba(0, 0, 0, 0.85) 100%
+        );
+        transition: opacity 0.4s var(--ease-out);
+      }
+
+      #youtubePlayer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        pointer-events: none;
+        object-fit: cover;
+        opacity: 0;
+        transition: opacity 0.8s var(--ease-out);
+      }
+      .story-click-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 12;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      .story-center-play {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(1.5);
+        font-size: 80px;
+        z-index: 25;
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.4s ease-out,
+          transform 0.4s ease-out;
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+        will-change: transform, opacity;
+      }
+      .story-center-play.is-flashing {
+        opacity: 0.9;
+        transform: translate(-50%, -50%) scale(1);
+        transition:
+          opacity 0.1s ease-in,
+          transform 0.2s var(--ease-spring);
+      }
+
+      .story-loader {
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--brand-dark);
+        transition: opacity 0.6s var(--ease-out);
+        pointer-events: none;
+      }
+      .story-loader__spinner {
+        width: 42px;
+        height: 42px;
+        border: 3.5px solid rgba(255, 255, 255, 0.1);
+        border-top-color: var(--brand-red);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .layout-wrapper.is-ready .story-loader {
+        opacity: 0;
+      }
+
+      /* =========================================================
+               UI ELEMENTS DALAM VIDEO
+               ========================================================= */
+      .story-progress-bar {
+        position: absolute;
+        top: max(16px, env(safe-area-inset-top));
+        left: 16px;
+        right: 16px;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.25);
+        z-index: 15;
+        border-radius: 4px;
+        overflow: hidden;
+        opacity: 0;
+        transition: opacity 0.8s var(--ease-out);
+      }
+      .story-progress-bar__fill {
+        height: 100%;
+        background: rgba(255, 255, 255, 0.95);
+        width: 0;
+        border-radius: 4px;
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+        will-change: width;
+      }
+
+      .story-top-actions {
+        position: absolute;
+        top: max(32px, env(safe-area-inset-top));
+        left: 16px;
+        z-index: 20;
+        display: flex;
+        flex-direction: row;
+        gap: 12px;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-20px);
+        transition:
+          opacity 0.8s var(--ease-out),
+          transform 0.8s var(--ease-spring);
+      }
+
+      .story-excerpt {
+        position: absolute;
+        bottom: max(32px, env(safe-area-inset-bottom));
+        left: 20px;
+        right: 20px;
+        padding-right: 70px;
+        z-index: 20;
+        color: #fff;
+        cursor: pointer;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(20px);
+        transition:
+          opacity 0.8s var(--ease-out),
+          transform 0.8s var(--ease-spring);
+        background: transparent;
+        border: none;
+        text-align: left;
+        font-family: inherit;
+        display: block;
+      }
+      .story-player-actions {
+        position: absolute;
+        bottom: max(32px, env(safe-area-inset-bottom));
+        right: 16px;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(20px);
+        transition:
+          opacity 0.8s var(--ease-out),
+          transform 0.8s var(--ease-spring);
+      }
+
+      .story-excerpt__badge {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+        backdrop-filter: blur(12px);
+        border: 0.5px solid var(--glass-border);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 6px 12px;
+        border-radius: 8px;
+        display: inline-block;
+        margin-bottom: 12px;
+      }
+      .story-excerpt__title {
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 8px;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+        line-height: 1.2;
+      }
+      .story-excerpt__text {
+        font-size: 14px;
+        line-height: 1.5;
+        opacity: 0.9;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+      }
+
+      .player-fab {
+        width: var(--fab-size);
+        height: var(--fab-size);
+        border-radius: 50%;
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border);
+        color: #fff;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        transition:
+          background 0.3s,
+          box-shadow 0.3s,
+          opacity 0.3s,
+          transform 0.3s;
+      }
+      .player-fab:active {
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        transform: scale(0.95);
+      }
+
+      .reaction-wrapper {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .reaction-options {
+        position: absolute;
+        bottom: 100%;
+        right: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        pointer-events: none;
+        padding-bottom: 12px;
+      }
+      .reaction-wrapper.is-active .reaction-options {
+        pointer-events: auto;
+      }
+      .reaction-option-btn {
+        width: var(--fab-size);
+        height: var(--fab-size);
+        border-radius: 50%;
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border);
+        color: #fff;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        opacity: 0;
+        transform: translateY(20px) scale(0.6);
+        transition: all 0.4s var(--ease-spring);
+      }
+      .reaction-option-btn:active {
+        background: rgba(255, 255, 255, 0.1);
+        transform: scale(0.9);
+      }
+      .reaction-wrapper.is-active .reaction-option-btn {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        margin-bottom: 10px;
+      }
+      .reaction-wrapper.is-active .player-fab {
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--brand-dark);
+      }
+      .reaction-option-btn:nth-child(1) {
+        transition-delay: 0s;
+      }
+      .reaction-option-btn:nth-child(2) {
+        transition-delay: 0.04s;
+      }
+      .reaction-option-btn:nth-child(3) {
+        transition-delay: 0.08s;
+      }
+      .reaction-option-btn:nth-child(4) {
+        transition-delay: 0.12s;
+      }
+      .reaction-wrapper.is-active .reaction-option-btn:nth-child(4) {
+        transition-delay: 0s;
+      }
+      .reaction-wrapper.is-active .reaction-option-btn:nth-child(3) {
+        transition-delay: 0.05s;
+      }
+      .reaction-wrapper.is-active .reaction-option-btn:nth-child(2) {
+        transition-delay: 0.1s;
+      }
+      .reaction-wrapper.is-active .reaction-option-btn:nth-child(1) {
+        transition-delay: 0.15s;
+      }
+
+      .layout-wrapper.is-ready .story-excerpt,
+      .layout-wrapper.is-ready .story-player-actions,
+      .layout-wrapper.is-ready .story-progress-bar,
+      .layout-wrapper.is-ready .story-top-actions {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+      }
+
+      /* =========================================================
+               EXTERNAL UI WRAPPER
+               ========================================================= */
+      .desktop-controls-wrapper {
+        position: fixed;
+        right: 16px;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none;
+        z-index: 50;
+        opacity: 0;
+        transition: opacity 0.8s var(--ease-out);
+      }
+      .layout-wrapper.is-ready .desktop-controls-wrapper {
+        opacity: 1;
+      }
+      .desktop-controls-wrapper > * {
+        pointer-events: auto;
+      }
+
+      .story-close-player {
+        position: fixed;
+        top: max(32px, env(safe-area-inset-top));
+        right: 16px;
+      }
+      .external-nav-group {
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .external-nav-btn {
+        width: var(--fab-size);
+        height: var(--fab-size);
+        border-radius: 50%;
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border);
+        color: #fff;
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        transition:
+          background 0.3s ease,
+          transform 0.2s ease,
+          opacity 0.3s ease;
+      }
+      .external-nav-btn:active:not(.is-disabled) {
+        background: rgba(255, 255, 255, 0.1);
+        transform: scale(0.95);
+      }
+      .external-nav-btn.is-disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+
+      /* =========================================================
+               LOGIKA CLEAN MODE
+               ========================================================= */
+      .layout-wrapper.is-clean-mode .reaction-wrapper,
+      .layout-wrapper.is-clean-mode .share-fab,
+      .layout-wrapper.is-clean-mode .story-excerpt,
+      .layout-wrapper.is-clean-mode .story-top-actions {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
+      }
+      .layout-wrapper.is-clean-mode .story-top-actions {
+        transform: translateY(-20px) !important;
+      }
+      .layout-wrapper.is-clean-mode .story-video-wrapper::after {
+        opacity: 0 !important;
+        visibility: hidden !important;
+      }
+      .layout-wrapper.is-clean-mode #icon-enter-fs {
+        display: none !important;
+      }
+      .layout-wrapper.is-clean-mode #icon-exit-fs {
+        display: block !important;
+      }
+
+      @media (max-width: 767px) {
+        .layout-wrapper.is-clean-mode .story-close-player {
+          opacity: 0 !important;
+          pointer-events: none !important;
+          visibility: hidden !important;
+        }
+      }
+
+      /* =========================================================
+               MODALS, POPUPS, AND CARDS
+               ========================================================= */
+      .story-card {
+        display: none;
+        width: var(--card-width);
+        height: auto;
+        max-height: calc(100dvh - 80px);
+        background: var(--surface);
+        border-radius: var(--frame-radius);
+        padding: 24px 0 0;
+        z-index: 30;
+        position: relative;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 32px 72px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .overlay-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        opacity: 0;
+        transition: opacity 0.5s;
+        pointer-events: auto;
+        touch-action: none;
+      }
+      .is-active .overlay-backdrop {
+        opacity: 1;
+      }
+
+      .story-sheet {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .story-sheet.is-active {
+        visibility: visible;
+      }
+      .story-sheet__content {
+        position: relative;
+        background: var(--surface);
+        border-radius: 28px 28px 0 0;
+        width: 100%;
+        padding: 12px 0 0;
+        z-index: 101;
+        transform: translateY(100%);
+        pointer-events: auto;
+        max-height: 88vh;
+        height: auto;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.6s var(--ease-spring);
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2);
+        will-change: transform;
+      }
+      .story-sheet.is-active .story-sheet__content {
+        transform: translateY(0);
+      }
+      .story-sheet__content.is-dragging {
+        transition: none;
+      }
+      .story-sheet__handle-wrapper {
+        width: 100%;
+        padding: 10px 0 24px;
+        cursor: grab;
+        display: flex;
+        justify-content: center;
+        flex-shrink: 0;
+        touch-action: none;
+      }
+      .story-sheet__handle {
+        width: 44px;
+        height: 5px;
+        background: #d1d1d6;
+        border-radius: 10px;
+      }
+
+      .story-popup {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .story-popup.is-active {
+        visibility: visible;
+      }
+      .story-popup__content {
+        position: relative;
+        background: var(--surface);
+        width: var(--card-width);
+        padding: 24px 0;
+        z-index: 101;
+        opacity: 0;
+        transform: translateY(40px);
+        max-height: calc(100dvh - 64px);
+        height: auto;
+        border-radius: var(--frame-radius);
+        transition:
+          transform 0.6s var(--ease-spring),
+          opacity 0.6s var(--ease-spring);
+        pointer-events: auto;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+      }
+      .story-popup.is-active .story-popup__content {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .story-close-btn {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: var(--bg-gray);
+        border-radius: 50%;
+        font-size: 14px;
+        font-weight: bold;
+        color: var(--text-sub);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s;
+        z-index: 30;
+      }
+
+      .story-dynamic-area,
+      .story-view {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex: 1 1 auto;
+      }
+      .story-header {
+        flex-shrink: 0;
+        padding: 0 64px 0 28px;
+        margin-bottom: 16px;
+      }
+      .story-view__title {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--text-main);
+        margin-bottom: 6px;
+        line-height: 1.25;
+      }
+      .story-view__meta {
+        font-size: 13px;
+        font-weight: 500;
+        color: #888;
+        display: block;
+      }
+
+      .story-body {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 0 28px 32px;
+        min-height: 0;
+        overscroll-behavior-y: contain;
+      }
+      .story-body::-webkit-scrollbar {
+        width: 5px;
+      }
+      .story-body::-webkit-scrollbar-thumb {
+        background: #d1d1d6;
+        border-radius: 10px;
+      }
+      .story-body::-webkit-scrollbar-track {
+        background: transparent;
+        margin: 8px 0;
+      }
+      .story-body__cms-content {
+        font-size: 15px;
+        color: var(--text-sub);
+        line-height: 1.6;
+      }
+      .story-body__cms-content p {
+        margin-bottom: 16px;
+      }
+
+      #reaction-container {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 15;
+        overflow: hidden;
+        contain: strict;
+      }
+      .particle {
+        position: absolute;
+        top: -10%;
+        left: var(--x);
+        font-size: var(--size);
+        opacity: 0;
+        will-change: transform, opacity;
+        animation: drop-physics var(--duration) ease-in forwards;
+        animation-delay: var(--delay);
+        filter: blur(var(--blur)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+        z-index: var(--z);
+      }
+      @keyframes drop-physics {
+        0% {
+          transform: translate3d(0, 0, 0) rotate(0deg);
+          opacity: 0;
+        }
+        10%,
+        80% {
+          opacity: 1;
+        }
+        100% {
+          transform: translate3d(var(--drift), 120vh, 0) rotate(var(--rotation));
+          opacity: 0;
+        }
+      }
+
+      @media (hover: hover) and (pointer: fine) {
+        .layout-wrapper.is-ready .story-excerpt:hover {
+          opacity: 0.9;
+        }
+        .player-fab:hover {
+          background: rgba(255, 255, 255, 0.25);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+        .reaction-option-btn:hover {
+          background: rgba(255, 255, 255, 0.25);
+        }
+        .story-close-btn:hover {
+          background: #e9ecef;
+          color: var(--text-main);
+        }
+        .external-nav-btn:hover:not(.is-disabled) {
+          background: rgba(255, 255, 255, 0.25);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+      }
+
+      /* =========================================================
+               RESPONSIVE BREAKPOINTS
+               ========================================================= */
+
+      /* --- MOBILE (< 768px) --- */
+      @media (max-width: 767px) {
+        .story-container,
+        .story-viewport {
+          border-radius: 0 !important;
+        }
+        .story-popup {
+          display: none !important;
+        }
+        .story-group-wrapper {
+          width: 100%;
+        }
+        .story-header {
+          padding: 0 28px;
+        }
+
+        .layout-wrapper.is-ui-open .story-viewport {
+          filter: blur(12px) brightness(0.5);
+          transform: scale(0.97);
+          border-radius: var(--frame-radius) !important;
+        }
+        .layout-wrapper.is-ui-open .story-close-player,
+        .layout-wrapper.is-ui-open .story-excerpt,
+        .layout-wrapper.is-ui-open .story-player-actions,
+        .layout-wrapper.is-ui-open .story-top-actions {
+          opacity: 0;
+          pointer-events: none;
+        }
+      }
+
+      /* --- TABLET (768px - 1365px) --- */
+      @media (min-width: 768px) and (max-width: 1365px) {
+        .story-sheet {
+          display: none !important;
+        }
+        .ambient-layer {
+          display: block;
+        }
+        .story-group-wrapper {
+          height: calc(100dvh - 64px);
+          width: auto;
+        }
+        .story-container {
+          width: auto;
+          height: 100%;
+          aspect-ratio: 9/16;
+          overflow: visible;
+          box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+        }
+        .desktop-controls-wrapper {
+          right: 32px;
+        }
+        .external-nav-group {
+          display: flex;
+          margin-top: auto;
+          margin-bottom: auto;
+        }
+        .story-close-player {
+          position: relative;
+          top: max(32px, env(safe-area-inset-top));
+          right: auto;
+        }
+
+        .layout-wrapper.is-ui-open .desktop-controls-wrapper {
+          opacity: 0;
+          pointer-events: none;
+        }
+        .layout-wrapper.is-ui-open .story-viewport {
+          filter: blur(12px) brightness(0.6);
+          transform: scale(0.97);
+        }
+        .layout-wrapper.is-ui-open .story-excerpt,
+        .layout-wrapper.is-ui-open .story-player-actions,
+        .layout-wrapper.is-ui-open .story-top-actions {
+          opacity: 0;
+          pointer-events: none;
+        }
+      }
+
+      /* --- LARGE DESKTOP (>= 1366px) --- */
+      @media (min-width: 1366px) {
+        .story-popup,
+        .story-sheet {
+          display: none !important;
+        }
+        .ambient-layer {
+          display: block;
+          opacity: 0.6;
+        }
+        .story-group-wrapper {
+          width: max-content;
+          height: calc(100dvh - 80px);
+          position: relative;
+          transition: transform 0.6s var(--ease-spring);
+          margin: 0 auto;
+        }
+        .story-container {
+          width: auto;
+          height: 100%;
+          aspect-ratio: 9/16;
+          overflow: visible;
+          box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+          z-index: 10;
+        }
+
+        .layout-wrapper.is-ui-open .story-group-wrapper {
+          transform: translateX(calc((var(--card-width) + 16px) / -2));
+        }
+        .story-card {
+          display: flex;
+          position: fixed;
+          right: -500px;
+          top: 50%;
+          transform: translateY(-50%);
+          margin: 0;
+          opacity: 0;
+          pointer-events: none;
+          transition: all 0.6s var(--ease-spring);
+          z-index: 15;
+        }
+        .layout-wrapper.is-ui-open .story-card {
+          opacity: 1;
+          pointer-events: auto;
+          right: 100px;
+        }
+
+        .desktop-controls-wrapper {
+          right: 40px;
+        }
+        .external-nav-group {
+          display: flex;
+          margin-top: auto;
+          margin-bottom: auto;
+        }
+        .story-close-player {
+          position: relative;
+          top: max(40px, env(safe-area-inset-top));
+          right: auto;
+        }
+
+        .layout-wrapper.is-ui-open .desktop-controls-wrapper {
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .layout-wrapper.is-ui-open .story-excerpt {
+          opacity: 0;
+          pointer-events: none;
+        }
+        .layout-wrapper.is-ui-open .story-player-actions,
+        .layout-wrapper.is-ui-open .story-top-actions {
+          opacity: 1;
+          pointer-events: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout-wrapper" id="layoutWrapper" tabindex="-1">
+      <div class="desktop-slider">
+        <div class="story-group-wrapper" id="storyGroupWrapper">
+          <div class="story-container" id="storyContainer">
+            <div class="ambient-layer">
+              <div id="ambientPlayer"></div>
+            </div>
+            <div class="story-viewport">
+              <div class="story-loader">
+                <div class="story-loader__spinner"></div>
+              </div>
+              <div class="story-progress-bar">
+                <div class="story-progress-bar__fill" id="storyProgressFill"></div>
+              </div>
+
+              <div class="story-top-actions">
+                <button class="player-fab" id="btnPlayPause" aria-label="Pause Video">⏸️</button>
+                <button class="player-fab" id="btnMute" aria-label="Mute Audio">🔇</button>
+              </div>
+
+              <div class="story-video-wrapper">
+                <div id="youtubePlayer"></div>
+              </div>
+
+              <div class="story-click-layer" id="storyClickLayer"></div>
+              <div id="reaction-container"></div>
+              <div class="story-center-play" id="centerPlayIndicator" aria-hidden="true">▶️</div>
+
+              <button class="story-excerpt" id="btnOpenContext" aria-label="Buka Detail Video">
+                <span class="story-excerpt__badge">Kategori</span>
+                <h2 class="story-excerpt__title">Judul Video</h2>
+                <div class="story-excerpt__text">Deskripsi singkat video...</div>
+              </button>
+
+              <div class="story-player-actions">
+                <div class="reaction-wrapper" id="reactionWrapper">
+                  <div class="reaction-options">
+                    <button class="reaction-option-btn" aria-label="Beri reaksi Hati" data-reaction="❤️">❤️</button>
+                    <button class="reaction-option-btn" aria-label="Beri reaksi Api" data-reaction="🔥">🔥</button>
+                    <button class="reaction-option-btn" aria-label="Beri reaksi Tertawa" data-reaction="🤣">🤣</button>
+                    <button class="reaction-option-btn" aria-label="Beri reaksi Tepuk Tangan" data-reaction="👏🏻">
+                      👏🏻
+                    </button>
+                    <button class="reaction-option-btn" aria-label="Beri reaksi Menangis" data-reaction="😭">😭</button>
+                  </div>
+                  <button class="player-fab" id="btnToggleReaction" aria-label="Pilih Reaksi" aria-expanded="false">
+                    🤍
+                  </button>
+                </div>
+                <button class="player-fab share-fab" id="btnShare" aria-label="Bagikan Tautan">🔗</button>
+                <button class="player-fab fullscreen-fab" id="btnCleanMode" aria-label="Mode Bersih">
+                  <span id="icon-enter-fs">🔲</span><span id="icon-exit-fs" style="display: none">✖️</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="story-card" id="storyCardDashboard">
+          <button class="story-close-btn" aria-label="Tutup Detail">✖️</button>
+          <div class="story-dynamic-area"></div>
+        </div>
+
+        <div class="desktop-controls-wrapper">
+          <button class="player-fab story-close-player" id="btnStoryClosePlayer" aria-label="Tutup Story">✖️</button>
+          <div class="external-nav-group">
+            <button id="btnPrevStory" class="external-nav-btn" aria-label="Video Sebelumnya">🔼</button>
+            <button id="btnNextStory" class="external-nav-btn" aria-label="Video Selanjutnya">🔽</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="story-sheet" id="storySheet" aria-modal="true" role="dialog">
+        <div class="story-sheet__backdrop overlay-backdrop"></div>
+        <div class="story-sheet__content">
+          <div class="story-sheet__handle-wrapper" id="storySheetHandle">
+            <div class="story-sheet__handle"></div>
+          </div>
+          <div class="story-dynamic-area"></div>
+        </div>
+      </div>
+
+      <div class="story-popup" id="storyPopup" aria-modal="true" role="dialog">
+        <div class="story-popup__backdrop overlay-backdrop"></div>
+        <div class="story-popup__content">
+          <button class="story-close-btn" aria-label="Tutup Detail">✖️</button>
+          <div class="story-dynamic-area"></div>
+        </div>
+      </div>
+    </div>
+
+    <template id="storyContentTemplate">
+      <div class="story-view is-active">
+        <div class="story-header">
+          <h3 class="story-view__title" tabindex="0">Judul</h3>
+          <span class="story-view__meta" id="storyMeta">Informasi • Meta</span>
+        </div>
+        <div class="story-body" tabindex="0">
+          <div class="story-body__cms-content"></div>
+        </div>
+      </div>
+    </template>
+
+    <script>
+      let player, ambientPlayer;
+      let currentVideoIndex = 0;
+
+      const videoPlaylist = [
+        {
+          id: 'lxSM-MYJsA8',
+          badge: 'Match Highlight',
+          title: 'Highlight Lengkap Gol Liga Champions Matchday 7! 🔥',
+          meta: 'UEFA Champions League • 2 Jam yang lalu',
+          excerpt:
+            'Semua gol dari Matchday ke-7 Liga Champions UEFA! Laga penuh aksi, kejutan tak terduga, dan gol-gol spektakuler.',
+          content:
+            '<p>Saksikan cuplikan lengkap seluruh gol dari ajang UEFA Champions League Matchday ke-7! Pekan ini menghadirkan laga penuh aksi dan kejutan tak terduga, salah satunya saat Bodø/Glimt secara dramatis menumbangkan Manchester City dengan skor 3-1.</p><p>Di laga lain, Arsenal sukses keluar sebagai pemenang dalam duel sengit kontra finalis musim lalu, Inter Milan. Sementara itu, Real Madrid kembali menunjukkan kelasnya dengan melumat AS Monaco 6-1 di hadapan publik sendiri.</p><p>Gol mana yang menjadi favoritmu di pekan ini? Persaingan menuju fase gugur <strong>semakin memanas!</strong></p>',
+        },
+        {
+          id: 'VsVzlXU3u9k',
+          badge: 'Tips & Trik',
+          title: 'Trik Ampuh Meningkatkan Skill Dribbling Sepak Bola ⚽',
+          meta: 'Football Skills • 5 Jam yang lalu',
+          excerpt:
+            'Panduan latihan penguasaan bola jarak dekat, kecepatan, dan kelincahan berbelok untuk melewati bek lawan dengan mudah.',
+          content:
+            '<p>Latihan ini berfokus pada penguasaan <i>close control</i>, kecepatan menggiring bola, dan kelincahan berbelok. Mulailah dengan berlatih dribbling menggunakan sisi dalam dan luar kaki melewati rintangan (<i>cones</i>). Latihan dasar ini sangat penting agar kamu terbiasa menembus rapatnya barisan pertahanan lawan.</p><p>Setelah itu, tingkatkan intensitas dengan melakukan <i>zigzag turns</i> secara cepat dan tajam. Ingat, sentuhan pertama (<i>first touch</i>) yang sempurna akan memberimu waktu ekstra untuk mengambil keputusan krusial sebelum melepaskan tembakan mematikan (<i>finishing</i>) ke gawang lawan.</p>',
+        },
+        {
+          id: 'jqbr2VED--0',
+          badge: 'Update Transfer',
+          title: 'Update Bursa Transfer: Manuver Mengejutkan Arsenal & Liverpool 💸',
+          meta: 'Transfer News • 1 Hari yang lalu',
+          excerpt:
+            'Arsenal incar Julian Alvarez, Liverpool bahas potensi penjualan Andy Robertson, serta update "Here We Go" terbaru.',
+          content:
+            '<p>Bursa transfer musim ini kembali memanas! Kabar mengejutkan datang dari kubu Arsenal yang dilaporkan tengah serius membidik <strong>Julian Alvarez</strong> guna mempertajam lini serang mereka.</p><p>Di tempat lain, Liverpool dikabarkan sedang melakukan pembicaraan intensif terkait potensi penjualan bek sayap andalan mereka, Andy Robertson. Tak ketinggalan, ada konfirmasi <i>"Here We Go"</i> terbaru dari jurnalis pakar transfer Fabrizio Romano mengenai pergerakan taktis Aston Villa. Efek domino dari rentetan transfer ini diprediksi akan segera mengubah peta kekuatan tim-tim elite Eropa!</p>',
+        },
+      ];
+
+      const updateVideoUI = () => {
+        const data = videoPlaylist[currentVideoIndex];
+
+        const progressFill = document.getElementById('storyProgressFill');
+        if (progressFill) progressFill.style.width = '0%';
+
+        document.querySelector('.story-excerpt__badge').innerText = data.badge;
+        document.querySelector('.story-excerpt__title').innerText = data.title;
+        document.querySelector('.story-excerpt__text').innerText = data.excerpt;
+
+        document.querySelectorAll('.story-view__title').forEach((el) => (el.innerText = data.title));
+        document.querySelectorAll('.story-view__meta').forEach((el) => (el.innerText = data.meta));
+        document.querySelectorAll('.story-body__cms-content').forEach((el) => (el.innerHTML = data.content));
+
+        if (player && typeof player.loadVideoById === 'function') {
+          player.loadVideoById(data.id);
+        }
+        if (ambientPlayer && typeof ambientPlayer.loadVideoById === 'function') {
+          ambientPlayer.loadVideoById(data.id);
+        }
+
+        StoryManager.startProgressBar();
+        StoryManager.checkNavState();
+      };
+
+      window.StoryManager = (() => {
+        const state = {
+          isOpen: false,
+          startY: 0,
+          currentY: 0,
+          isDragging: false,
+          animFrameId: null,
+          lastClickTime: 0,
+        };
+
+        const domRefs = {
+          layoutWrapper: document.getElementById('layoutWrapper'),
+          groupWrapper: document.getElementById('storyGroupWrapper'),
+          mainContainer: document.getElementById('storyContainer'),
+          progressFill: document.getElementById('storyProgressFill'),
+          mobileSheet: document.getElementById('storySheet'),
+          mobileHandle: document.getElementById('storySheetHandle'),
+          tabletPopup: document.getElementById('storyPopup'),
+          dashboardCard: document.getElementById('storyCardDashboard'),
+          contentTemplate: document.getElementById('storyContentTemplate'),
+          reactionWrapper: document.getElementById('reactionWrapper'),
+          btnPlayPause: document.getElementById('btnPlayPause'),
+          btnMute: document.getElementById('btnMute'),
+          iconEnter: document.getElementById('icon-enter-fs'),
+          iconExit: document.getElementById('icon-exit-fs'),
+          reactionContainer: document.getElementById('reaction-container'),
+          centerPlayIndicator: document.getElementById('centerPlayIndicator'),
+          btnPrevStory: document.getElementById('btnPrevStory'),
+          btnNextStory: document.getElementById('btnNextStory'),
+          storyClickLayer: document.getElementById('storyClickLayer'),
+          btnToggleReaction: document.getElementById('btnToggleReaction'),
+          btnShare: document.getElementById('btnShare'),
+          btnCleanMode: document.getElementById('btnCleanMode'),
+          btnStoryClosePlayer: document.getElementById('btnStoryClosePlayer'),
+          btnOpenContext: document.getElementById('btnOpenContext'),
+        };
+
+        const getActiveContext = () => {
+          const w = window.innerWidth;
+          if (w >= 1366) return domRefs.dashboardCard;
+          return w >= 768 ? domRefs.tabletPopup : domRefs.mobileSheet;
+        };
+
+        const injectTemplate = (el) => {
+          const target = el.querySelector('.story-dynamic-area');
+          if (target && target.innerHTML.trim() === '') {
+            target.appendChild(domRefs.contentTemplate.content.cloneNode(true));
+          }
+        };
+        [domRefs.mobileSheet, domRefs.tabletPopup, domRefs.dashboardCard].forEach(injectTemplate);
+
+        const loopProgress = () => {
+          if (!state.isOpen && player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+            const duration = player.getDuration();
+            const currentTime = player.getCurrentTime();
+            if (duration > 0) {
+              const percent = (currentTime / duration) * 100;
+              domRefs.progressFill.style.width = `${percent}%`;
+            }
+            state.animFrameId = requestAnimationFrame(loopProgress);
+          } else {
+            state.animFrameId = null;
+          }
+        };
+
+        const startProgressBar = () => {
+          if (state.animFrameId) cancelAnimationFrame(state.animFrameId);
+          domRefs.progressFill.style.width = '0%';
+          state.animFrameId = requestAnimationFrame(loopProgress);
+        };
+
+        const stopProgressBar = () => {
+          if (state.animFrameId) cancelAnimationFrame(state.animFrameId);
+        };
+
+        let flashTimeout;
+        const flashIcon = (iconStr) => {
+          const iconEl = domRefs.centerPlayIndicator;
+          if (!iconEl) return;
+          iconEl.innerText = iconStr;
+          iconEl.classList.remove('is-flashing');
+          void iconEl.offsetWidth;
+          iconEl.classList.add('is-flashing');
+          clearTimeout(flashTimeout);
+          flashTimeout = setTimeout(() => {
+            iconEl.classList.remove('is-flashing');
+          }, 500);
+        };
+
+        const checkNavState = () => {
+          if (domRefs.btnPrevStory) domRefs.btnPrevStory.classList.toggle('is-disabled', currentVideoIndex === 0);
+          if (domRefs.btnNextStory)
+            domRefs.btnNextStory.classList.toggle('is-disabled', currentVideoIndex === videoPlaylist.length - 1);
+        };
+
+        const nextVideo = (e) => {
+          if (e) e.stopPropagation();
+          if (currentVideoIndex < videoPlaylist.length - 1) {
+            currentVideoIndex++;
+            if (state.isOpen) closeContext();
+            updateVideoUI();
+          }
+        };
+
+        const prevVideo = (e) => {
+          if (e) e.stopPropagation();
+          if (currentVideoIndex > 0) {
+            currentVideoIndex--;
+            if (state.isOpen) closeContext();
+            updateVideoUI();
+          }
+        };
+
+        const handleStoryClick = (e) => {
+          if (e) e.stopPropagation();
+          const screenWidth = window.innerWidth;
+          const clickX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+
+          if (clickX < screenWidth * 0.25) {
+            if (currentVideoIndex > 0) prevVideo();
+          } else if (clickX > screenWidth * 0.75) {
+            if (currentVideoIndex < videoPlaylist.length - 1) nextVideo();
+          } else {
+            togglePlayPause();
+          }
+        };
+
+        const closeStory = (e) => {
+          if (e) e.stopPropagation();
+          if (player) player.pauseVideo();
+          if (ambientPlayer && typeof ambientPlayer.pauseVideo === 'function') ambientPlayer.pauseVideo();
+
+          domRefs.layoutWrapper.style.opacity = '0';
+          setTimeout(() => {
+            domRefs.layoutWrapper.style.display = 'none';
+          }, 500);
+        };
+
+        const togglePlayPause = (e) => {
+          if (e) e.stopPropagation();
+          if (!player) return;
+
+          const now = Date.now();
+          if (now - state.lastClickTime < 300) return;
+          state.lastClickTime = now;
+
+          if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+            player.pauseVideo();
+            if (ambientPlayer && typeof ambientPlayer.pauseVideo === 'function') ambientPlayer.pauseVideo();
+            flashIcon('⏸️');
+          } else {
+            player.playVideo();
+            if (ambientPlayer && typeof ambientPlayer.seekTo === 'function') {
+              ambientPlayer.seekTo(player.getCurrentTime(), true);
+              ambientPlayer.playVideo();
+            }
+            flashIcon('▶️');
+          }
+        };
+
+        const toggleMute = (e) => {
+          if (e) e.stopPropagation();
+          if (!player) return;
+          if (player.isMuted()) {
+            player.unMute();
+            domRefs.btnMute.innerText = '🔊';
+          } else {
+            player.mute();
+            domRefs.btnMute.innerText = '🔇';
+          }
+        };
+
+        const trapFocus = (e) => {
+          if (!state.isOpen) return;
+          const activeCtx = getActiveContext();
+          const focusableElements = activeCtx.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          );
+          if (focusableElements.length === 0) return;
+
+          const firstElement = focusableElements[0];
+          const lastElement = focusableElements[focusableElements.length - 1];
+
+          if (e.key === 'Tab') {
+            if (e.shiftKey) {
+              if (document.activeElement === firstElement) {
+                lastElement.focus();
+                e.preventDefault();
+              }
+            } else {
+              if (document.activeElement === lastElement) {
+                firstElement.focus();
+                e.preventDefault();
+              }
+            }
+          } else if (e.key === 'Escape') {
+            closeContext();
+          }
+        };
+
+        const openContext = () => {
+          const ctx = getActiveContext();
+          if (!ctx) return;
+
+          domRefs.layoutWrapper.classList.remove('is-clean-mode');
+          domRefs.iconEnter.style.display = 'block';
+          domRefs.iconExit.style.display = 'none';
+
+          state.isOpen = true;
+          domRefs.layoutWrapper.classList.add('is-ui-open');
+          ctx.classList.add('is-active');
+
+          if (window.innerWidth < 1366) {
+            if (player) player.pauseVideo();
+            if (ambientPlayer && typeof ambientPlayer.pauseVideo === 'function') ambientPlayer.pauseVideo();
+          }
+          closeReactionMenu();
+
+          document.addEventListener('keydown', trapFocus);
+          const closeBtn = ctx.querySelector('.story-close-btn');
+          if (closeBtn) setTimeout(() => closeBtn.focus(), 100);
+        };
+
+        const closeContext = () => {
+          if (!state.isOpen) return;
+          state.isOpen = false;
+          domRefs.layoutWrapper.classList.remove('is-ui-open');
+
+          domRefs.mobileSheet.classList.remove('is-active');
+          domRefs.tabletPopup.classList.remove('is-active');
+          domRefs.dashboardCard.classList.remove('is-active');
+
+          domRefs.mobileSheet.querySelector('.story-sheet__content').style.transform = '';
+
+          if (window.innerWidth < 1366) {
+            if (player) player.playVideo();
+            if (ambientPlayer && typeof ambientPlayer.playVideo === 'function') ambientPlayer.playVideo();
+          }
+
+          document.removeEventListener('keydown', trapFocus);
+          domRefs.layoutWrapper.focus();
+        };
+
+        window.addEventListener('resize', () => {
+          if (state.isOpen) closeContext();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden && player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+            togglePlayPause();
+          }
+        });
+
+        document.addEventListener('keydown', (e) => {
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || state.isOpen) return;
+          if (e.code === 'Space') {
+            e.preventDefault();
+            togglePlayPause();
+          } else if (e.code === 'ArrowRight') {
+            nextVideo();
+          } else if (e.code === 'ArrowLeft') {
+            prevVideo();
+          }
+        });
+
+        const toggleReactionMenu = (e) => {
+          if (e) e.stopPropagation();
+          if (domRefs.reactionWrapper) {
+            const isActive = domRefs.reactionWrapper.classList.toggle('is-active');
+            if (domRefs.btnToggleReaction) {
+              domRefs.btnToggleReaction.setAttribute('aria-expanded', isActive);
+            }
+          }
+        };
+
+        const closeReactionMenu = () => {
+          if (domRefs.reactionWrapper) {
+            domRefs.reactionWrapper.classList.remove('is-active');
+            if (domRefs.btnToggleReaction) {
+              domRefs.btnToggleReaction.setAttribute('aria-expanded', 'false');
+            }
+          }
+        };
+
+        const toggleCleanMode = (e) => {
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          closeReactionMenu();
+          domRefs.layoutWrapper.classList.toggle('is-clean-mode');
+        };
+
+        const nativeShare = async () => {
+          const data = {
+            title: videoPlaylist[currentVideoIndex].title,
+            url: `https://www.youtube.com/watch?v=${videoPlaylist[currentVideoIndex].id}`,
+          };
+          try {
+            if (navigator.share) await navigator.share(data);
+            else {
+              navigator.clipboard.writeText(data.url);
+              alert('Tautan berhasil disalin!');
+            }
+          } catch (e) {}
+        };
+
+        const triggerReaction = (char) => {
+          const fragment = document.createDocumentFragment();
+          for (let i = 0; i < 35; i++) {
+            const el = document.createElement('div');
+            el.className = 'particle';
+            el.innerText = char;
+            const depth = Math.random();
+            el.style.cssText = `--x:${Math.random() * 100}%;--size:${depth * 1.2 + 1.2}rem;--blur:${depth < 0.2 ? '2px' : '0px'};--z:${depth > 0.5 ? 20 : 1};--duration:${3500 - depth * 1500}ms;--delay:${Math.random() * 600}ms;--rotation:${(Math.random() - 0.5) * 720}deg;--drift:${(Math.random() - 0.5) * 120}px;`;
+            el.onanimationend = () => el.remove();
+            fragment.appendChild(el);
+          }
+          domRefs.reactionContainer.appendChild(fragment);
+          if (navigator.vibrate) navigator.vibrate(40);
+        };
+
+        const react = (emoji, e) => {
+          if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+          triggerReaction(emoji);
+          const mainBtn = domRefs.reactionWrapper.querySelector('.player-fab');
+          if (mainBtn) {
+            mainBtn.innerText = emoji;
+            setTimeout(() => (mainBtn.innerText = '🤍'), 1500);
+          }
+          closeReactionMenu();
+        };
+
+        const initDrag = () => {
+          let rAFDrag = null;
+
+          const move = (e) => {
+            if (!state.isDragging || window.innerWidth >= 768) return;
+            if (e.cancelable) e.preventDefault();
+
+            if (rAFDrag) cancelAnimationFrame(rAFDrag);
+            rAFDrag = requestAnimationFrame(() => {
+              const y = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+              state.currentY = Math.max(0, y - state.startY);
+              domRefs.mobileSheet.querySelector('.story-sheet__content').style.transform =
+                `translateY(${state.currentY}px)`;
+            });
+          };
+
+          const end = () => {
+            if (!state.isDragging || window.innerWidth >= 768) return;
+            state.isDragging = false;
+            window.removeEventListener('mousemove', move);
+            window.removeEventListener('touchmove', move);
+            window.removeEventListener('mouseup', end);
+            window.removeEventListener('touchend', end);
+            if (state.currentY > 120) closeContext();
+            else domRefs.mobileSheet.querySelector('.story-sheet__content').style.transform = '';
+            state.currentY = 0;
+          };
+
+          const start = (e) => {
+            if (window.innerWidth >= 768) return;
+            state.startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            state.isDragging = true;
+            window.addEventListener('mousemove', move);
+            window.addEventListener('touchmove', move, { passive: false });
+            window.addEventListener('mouseup', end);
+            window.addEventListener('touchend', end);
+          };
+
+          if (domRefs.mobileHandle) {
+            domRefs.mobileHandle.addEventListener('mousedown', start);
+            domRefs.mobileHandle.addEventListener('touchstart', start, { passive: true });
+          }
+        };
+
+        initDrag();
+
+        // LOGIKA BARU: Event Delegation Terpusat
+        const initEventListeners = () => {
+          document.addEventListener('click', (e) => {
+            const target = e.target;
+
+            // ==========================================
+            // 1. KELOMPOK WAJIB DELEGASI (Class & Elemen Ganda)
+            // ==========================================
+
+            // Tombol close atau klik area gelap (backdrop)
+            if (target.closest('.story-close-btn') || target.closest('.overlay-backdrop')) {
+              return closeContext();
+            }
+
+            // Tombol emoji reaksi
+            const reactionBtn = target.closest('.reaction-option-btn');
+            if (reactionBtn) {
+              const emoji = reactionBtn.getAttribute('data-reaction');
+              return react(emoji, e);
+            }
+
+            // ==========================================
+            // 2. KELOMPOK BISA DELEGASI (Elemen Spesifik / ID)
+            // ==========================================
+
+            // Kontrol Media & Navigasi
+            if (target.closest('#btnPlayPause')) return togglePlayPause(e);
+            if (target.closest('#btnMute')) return toggleMute(e);
+            if (target.closest('#btnPrevStory')) return prevVideo(e);
+            if (target.closest('#btnNextStory')) return nextVideo(e);
+            if (target.closest('#btnStoryClosePlayer')) return closeStory(e);
+
+            // UI Ekstra & Menu context
+            if (target.closest('#btnOpenContext')) return openContext();
+            if (target.closest('#btnToggleReaction')) return toggleReactionMenu(e);
+            if (target.closest('#btnShare')) return nativeShare();
+            if (target.closest('#btnCleanMode')) return toggleCleanMode(e);
+
+            // Area klik utama video (kiri/kanan/tengah)
+            if (target.closest('#storyClickLayer')) return handleStoryClick(e);
+
+            // ==========================================
+            // 3. LOGIKA KLIK DI LUAR ELEMEN (Outside Click)
+            // ==========================================
+
+            // Menutup menu reaksi jika user mengklik di luar area reactionWrapper
+            if (domRefs.reactionWrapper && !domRefs.reactionWrapper.contains(target)) {
+              closeReactionMenu();
+            }
+          });
+        };
+
+        initEventListeners();
+
+        return {
+          startProgressBar,
+          stopProgressBar,
+          checkNavState,
+        };
+      })();
+
+      function loadYouTubeAPI() {
+        var tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      }
+
+      function onYouTubeIframeAPIReady() {
+        updateVideoUI();
+
+        const initialVideoId = videoPlaylist[currentVideoIndex].id;
+
+        const ytOptions = {
+          videoId: initialVideoId,
+          playerVars: {
+            autoplay: 1,
+            controls: 0,
+            loop: 0,
+            mute: 1,
+            modestbranding: 1,
+            iv_load_policy: 3,
+            rel: 0,
+            playsinline: 1,
+          },
+        };
+
+        player = new YT.Player('youtubePlayer', {
+          ...ytOptions,
+          events: {
+            onReady: (e) => {
+              e.target.mute();
+              e.target.playVideo();
+              document.getElementById('youtubePlayer').style.opacity = '1';
+              document.getElementById('layoutWrapper').classList.add('is-ready');
+            },
+            onError: (e) => {
+              console.error('YouTube Player Error:', e.data);
+              document.getElementById('layoutWrapper').classList.add('is-ready');
+            },
+            onStateChange: (e) => {
+              const btn = document.getElementById('btnPlayPause');
+              const container = document.getElementById('storyContainer');
+
+              if (e.data === YT.PlayerState.PLAYING) {
+                if (btn) btn.innerText = '⏸️';
+                container.classList.remove('is-paused');
+                if (ambientPlayer && typeof ambientPlayer.seekTo === 'function') {
+                  ambientPlayer.seekTo(player.getCurrentTime(), true);
+                }
+                StoryManager.startProgressBar();
+              } else if (e.data === YT.PlayerState.PAUSED) {
+                if (btn) btn.innerText = '▶️';
+                container.classList.add('is-paused');
+                StoryManager.stopProgressBar();
+              } else if (e.data === YT.PlayerState.ENDED) {
+                StoryManager.stopProgressBar();
+                e.target.seekTo(0);
+                e.target.playVideo();
+              }
+            },
+          },
+        });
+
+        if (window.innerWidth >= 768) {
+          ambientPlayer = new YT.Player('ambientPlayer', {
+            ...ytOptions,
+            events: {
+              onReady: (e) => {
+                e.target.mute();
+                e.target.playVideo();
+                document.getElementById('ambientPlayer').style.opacity = '1';
+              },
+            },
+          });
+        }
+      }
+
+      loadYouTubeAPI();
+    </script>
+  </body>
+</html>
