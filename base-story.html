@@ -164,7 +164,7 @@
         inset: 0;
         width: 100%;
         height: 100%;
-        object-fit: contain; /* Akan diatur via JS */
+        object-fit: contain;
         z-index: 8;
         opacity: 1;
         pointer-events: none;
@@ -178,7 +178,7 @@
         height: 100%;
         border: none;
         pointer-events: none;
-        object-fit: cover; /* Akan diatur via JS */
+        object-fit: cover;
         opacity: 0;
         transition: opacity 0.8s var(--ease-out);
       }
@@ -347,7 +347,6 @@
         display: block;
       }
 
-      /* BADGE: Multiple Categories Support */
       :is(.story-excerpt__badges, .story-view__badges) {
         display: flex;
         flex-wrap: wrap;
@@ -1073,10 +1072,9 @@
         updateEls('.story-view__meta', 'innerText', data.meta);
         updateEls('.story-body__cms-content', 'innerHTML', data.content);
 
-        // --- Render Multiple Categories ---
         const badgeContainers = document.querySelectorAll('.story-excerpt__badges, .story-view__badges');
         badgeContainers.forEach((container) => {
-          container.innerHTML = ''; // Kosongkan container
+          container.innerHTML = '';
           if (data.categories && data.categories.length > 0) {
             data.categories.forEach((category) => {
               const span = document.createElement('span');
@@ -1090,7 +1088,6 @@
         const ytPlayer = document.getElementById('youtubePlayer');
         const thumbOverlay = document.getElementById('thumbnailOverlay');
 
-        // Atur object-fit berdasarkan jenis video
         const objectFitStyle = isVideoShort ? 'cover' : 'contain';
         if (ytPlayer) ytPlayer.style.objectFit = objectFitStyle;
 
