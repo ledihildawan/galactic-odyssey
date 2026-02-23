@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>Telkomsel Story - URL Auto-Detect</title>
+    <title>Telkomsel Story - URL Detect & Multiple Categories</title>
     <style>
       :root {
         --brand-red: #ee2d24;
@@ -159,13 +159,12 @@
         transition: opacity 0.4s var(--ease-out);
       }
 
-      /* ILUSI PRELOAD: THUMBNAIL OVERLAY */
       .thumbnail-overlay {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
-        object-fit: contain;
+        object-fit: contain; /* Akan diatur via JS */
         z-index: 8;
         opacity: 1;
         pointer-events: none;
@@ -179,7 +178,7 @@
         height: 100%;
         border: none;
         pointer-events: none;
-        object-fit: cover;
+        object-fit: cover; /* Akan diatur via JS */
         opacity: 0;
         transition: opacity 0.8s var(--ease-out);
       }
@@ -207,7 +206,6 @@
         z-index: var(--z);
         will-change: transform, opacity;
       }
-
       @keyframes drop-physics {
         0% {
           transform: translate3d(0, 0, 0) rotate(0deg);
@@ -348,7 +346,15 @@
         font-family: inherit;
         display: block;
       }
-      .story-excerpt__badge {
+
+      /* BADGE: Multiple Categories Support */
+      :is(.story-excerpt__badges, .story-view__badges) {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .story-badge-item {
         background: rgba(255, 255, 255, 0.15);
         color: #fff;
         backdrop-filter: blur(12px);
@@ -360,8 +366,12 @@
         padding: 6px 12px;
         border-radius: 8px;
         display: inline-block;
-        margin-bottom: 12px;
       }
+      .story-view__badges .story-badge-item {
+        background: var(--brand-red);
+        border: none;
+      }
+
       .story-excerpt__title {
         font-size: 20px;
         font-weight: 800;
@@ -523,7 +533,6 @@
       .desktop-controls-wrapper > * {
         pointer-events: auto;
       }
-
       .story-close-player {
         position: fixed;
         top: max(16px, env(safe-area-inset-top));
@@ -570,7 +579,6 @@
         box-shadow: 0 32px 72px rgba(0, 0, 0, 0.3);
         border: 1px solid rgba(255, 255, 255, 0.05);
       }
-
       .overlay-backdrop {
         position: absolute;
         inset: 0;
@@ -631,7 +639,6 @@
       .story-sheet__content.is-dragging {
         transition: transform 0.1s ease-out;
       }
-
       .story-sheet__handle-wrapper {
         width: 100%;
         padding: 10px 0 24px;
@@ -696,17 +703,6 @@
         padding: 0 64px 0 28px;
         margin-bottom: 16px;
       }
-      .story-view__badge {
-        background: var(--brand-red);
-        color: #ffffff;
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-        padding: 4px 10px;
-        border-radius: 6px;
-        display: inline-block;
-        margin-bottom: 12px;
-      }
       .story-view__title {
         font-size: 24px;
         font-weight: 800;
@@ -749,7 +745,7 @@
         margin-bottom: 16px;
       }
 
-      /* ================= HOVER EFFECTS ================= */
+      /* ================= HOVER EFFECTS & RESPONSIVE ================= */
       @media (hover: hover) and (pointer: fine) {
         .layout-wrapper.is-ready .story-excerpt:hover {
           opacity: 0.9;
@@ -764,7 +760,6 @@
         }
       }
 
-      /* ================= RESPONSIVE ================= */
       @media (max-width: 767px) {
         :is(.story-container, .story-viewport) {
           border-radius: 0 !important;
@@ -812,7 +807,6 @@
           display: flex;
           margin: auto 0;
         }
-
         @media (max-width: 1365px) {
           .story-group-wrapper {
             height: calc(100dvh - 64px);
@@ -860,7 +854,6 @@
         .layout-wrapper.is-ui-open .story-group-wrapper {
           transform: translateX(calc((var(--card-width) + 16px) / -2));
         }
-
         .story-card {
           display: flex;
           position: fixed;
@@ -878,7 +871,6 @@
           pointer-events: auto;
           right: 100px;
         }
-
         .desktop-controls-wrapper {
           right: 40px;
         }
@@ -887,7 +879,6 @@
           top: max(32px, env(safe-area-inset-top));
           right: auto;
         }
-
         .layout-wrapper.is-ui-open .desktop-controls-wrapper,
         .layout-wrapper.is-ui-open .story-player-actions,
         .layout-wrapper.is-ui-open .story-top-actions {
@@ -932,7 +923,7 @@
               </div>
 
               <button class="story-excerpt" id="btnOpenContext" aria-label="Buka Detail Video">
-                <span class="story-excerpt__badge">Kategori</span>
+                <div class="story-excerpt__badges"></div>
                 <h2 class="story-excerpt__title">Judul Video</h2>
                 <div class="story-excerpt__text">Deskripsi singkat video...</div>
               </button>
@@ -995,7 +986,7 @@
     <template id="storyContentTemplate">
       <div class="story-view is-active">
         <div class="story-header">
-          <span class="story-view__badge">Kategori</span>
+          <div class="story-view__badges"></div>
           <h3 class="story-view__title" tabindex="-1">Judul</h3>
           <span class="story-view__meta" id="storyMeta">Informasi • Meta</span>
         </div>
@@ -1030,11 +1021,11 @@
 
       const thumbnailCache = new Map();
 
-      // ================= PLAYLIST BARU MENGGUNAKAN URL =================
+      // ================= PLAYLIST DENGAN MULTIPLE CATEGORIES =================
       const videoPlaylist = [
         {
           url: 'https://www.youtube.com/watch?v=lxSM-MYJsA8',
-          badge: 'Match Highlight',
+          categories: ['Match Highlight', 'UCL', 'Trending'],
           title: 'Highlight Lengkap Gol Liga Champions Matchday 7! 🔥',
           meta: 'UEFA Champions League • 2 Jam yang lalu',
           excerpt: 'Semua gol dari Matchday ke-7 Liga Champions UEFA! Laga penuh aksi, kejutan tak terduga.',
@@ -1042,7 +1033,7 @@
         },
         {
           url: 'https://www.youtube.com/shorts/Km5xz7NKqlA',
-          badge: 'Tips & Trik',
+          categories: ['Tips & Trik', 'Football Skills'],
           title: 'Trik Ampuh Meningkatkan Skill Dribbling Sepak Bola ⚽',
           meta: 'Football Skills • 5 Jam yang lalu',
           excerpt: 'Panduan latihan penguasaan bola jarak dekat, kecepatan, dan kelincahan berbelok.',
@@ -1050,7 +1041,7 @@
         },
         {
           url: 'https://www.youtube.com/watch?v=p-2feskqE3w',
-          badge: 'Update Transfer',
+          categories: ['Update Transfer', 'News', 'EPL'],
           title: 'Update Bursa Transfer: Manuver Mengejutkan Arsenal & Liverpool 💸',
           meta: 'Transfer News • 1 Hari yang lalu',
           excerpt: 'Arsenal incar Julian Alvarez, Liverpool bahas potensi penjualan Andy Robertson.',
@@ -1077,15 +1068,29 @@
         const progressFill = document.getElementById('storyProgressFill');
         if (progressFill) progressFill.style.transform = 'scaleX(0)';
 
-        updateEls('.story-excerpt__badge, .story-view__badge', 'innerText', data.badge);
         updateEls('.story-excerpt__title, .story-view__title', 'innerText', data.title);
         updateEls('.story-excerpt__text', 'innerText', data.excerpt);
         updateEls('.story-view__meta', 'innerText', data.meta);
         updateEls('.story-body__cms-content', 'innerHTML', data.content);
 
+        // --- Render Multiple Categories ---
+        const badgeContainers = document.querySelectorAll('.story-excerpt__badges, .story-view__badges');
+        badgeContainers.forEach((container) => {
+          container.innerHTML = ''; // Kosongkan container
+          if (data.categories && data.categories.length > 0) {
+            data.categories.forEach((category) => {
+              const span = document.createElement('span');
+              span.className = 'story-badge-item';
+              span.innerText = category;
+              container.appendChild(span);
+            });
+          }
+        });
+
         const ytPlayer = document.getElementById('youtubePlayer');
         const thumbOverlay = document.getElementById('thumbnailOverlay');
 
+        // Atur object-fit berdasarkan jenis video
         const objectFitStyle = isVideoShort ? 'cover' : 'contain';
         if (ytPlayer) ytPlayer.style.objectFit = objectFitStyle;
 
