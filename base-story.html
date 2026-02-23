@@ -22,7 +22,7 @@
         --card-width: 420px;
         --desktop-gap: 40px;
         --fab-size: 44px;
-        --frame-radius: 12px;
+        --frame-radius: 16px;
       }
       * {
         box-sizing: border-box;
@@ -37,7 +37,7 @@
         color: var(--text-main);
       }
 
-      /* Point 5: Aksesibilitas (Focus Outline) */
+      /* Aksesibilitas (Focus Outline) */
       .story-excerpt:focus-visible,
       button:focus-visible {
         outline: 2px solid var(--brand-red);
@@ -96,6 +96,7 @@
         transform: translateZ(0);
       }
 
+      /* OPTIMASI AMBIENT LAYER (GPU ACCELERATION) */
       .ambient-layer {
         display: none;
         position: absolute;
@@ -106,19 +107,20 @@
         width: 110%;
         height: 90%;
         z-index: 1;
-        filter: blur(60px) saturate(150%);
+        filter: blur(50px) saturate(150%);
         opacity: 0.4;
         pointer-events: none;
-        transition: opacity 0.6s;
-        will-change: opacity, transform;
-        transform: translateZ(0);
+        transition: opacity 0.8s ease;
+        transform: translate3d(0, 0, 0) scale(1.05);
+        will-change: opacity;
+        backface-visibility: hidden;
       }
       #ambientPlayer {
         width: 100%;
         height: 100%;
         border: none;
         opacity: 0;
-        transition: opacity 0.8s var(--ease-out);
+        transition: opacity 1s var(--ease-out);
       }
       .story-container.is-focused .ambient-layer {
         opacity: 0.25;
@@ -151,9 +153,9 @@
         z-index: 5;
         background: linear-gradient(
           to bottom,
-          rgba(0, 0, 0, 0.05) 0,
+          rgba(0, 0, 0, 0.1) 0,
           rgba(0, 0, 0, 0) 25%,
-          rgba(0, 0, 0, 0) 50%,
+          rgba(0, 0, 0, 0) 60%,
           rgba(0, 0, 0, 0.85) 100%
         );
         transition: opacity 0.4s var(--ease-out);
@@ -171,12 +173,15 @@
         opacity: 0;
         transition: opacity 0.8s var(--ease-out);
       }
+
       .story-click-layer {
         position: absolute;
         inset: 0;
         z-index: 12;
         cursor: pointer;
-        touch-action: manipulation;
+        touch-action: none;
+        -webkit-touch-callout: none;
+        user-select: none;
       }
 
       .story-center-play {
@@ -210,7 +215,7 @@
         align-items: center;
         justify-content: center;
         background: var(--brand-dark);
-        transition: opacity 0.6s var(--ease-out);
+        transition: opacity 0.4s var(--ease-out);
         pointer-events: none;
       }
       .story-loader__spinner {
@@ -219,7 +224,7 @@
         border: 3.5px solid rgba(255, 255, 255, 0.1);
         border-top-color: var(--brand-red);
         border-radius: 50%;
-        animation: spin 1s linear infinite;
+        animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
       }
       @keyframes spin {
         to {
@@ -246,13 +251,16 @@
         opacity: 0;
         transition: opacity 0.8s var(--ease-out);
       }
+
       .story-progress-bar__fill {
         height: 100%;
         background: rgba(255, 255, 255, 0.95);
-        width: 0;
+        width: 100%;
+        transform-origin: left;
+        transform: scaleX(0);
         border-radius: 4px;
         box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
-        will-change: width;
+        will-change: transform;
       }
 
       .story-top-actions {
@@ -313,6 +321,7 @@
         background: rgba(255, 255, 255, 0.15);
         color: #fff;
         backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border: 0.5px solid var(--glass-border);
         font-size: 11px;
         font-weight: 700;
@@ -349,7 +358,7 @@
         -webkit-backdrop-filter: blur(16px);
         border: 1px solid var(--glass-border);
         color: #fff;
-        font-size: 20px;
+        font-size: 18px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -359,12 +368,12 @@
           background 0.3s,
           box-shadow 0.3s,
           opacity 0.3s,
-          transform 0.3s;
+          transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       }
       .player-fab:active {
         background: rgba(255, 255, 255, 0.1);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        transform: scale(0.95);
+        transform: scale(0.9);
       }
 
       .reaction-wrapper {
@@ -407,7 +416,7 @@
       }
       .reaction-option-btn:active {
         background: rgba(255, 255, 255, 0.1);
-        transform: scale(0.9);
+        transform: scale(0.85);
       }
       .reaction-wrapper.is-active .reaction-option-btn {
         opacity: 1;
@@ -502,12 +511,12 @@
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
         transition:
           background 0.3s ease,
-          transform 0.2s ease,
+          transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
           opacity 0.3s ease;
       }
       .external-nav-btn:active:not(.is-disabled) {
         background: rgba(255, 255, 255, 0.1);
-        transform: scale(0.95);
+        transform: scale(0.9);
       }
       .external-nav-btn.is-disabled {
         opacity: 0.3;
@@ -571,6 +580,7 @@
         inset: 0;
         background: rgba(0, 0, 0, 0.6);
         backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
         opacity: 0;
         transition: opacity 0.5s;
         pointer-events: auto;
@@ -614,7 +624,7 @@
         transform: translateY(0);
       }
       .story-sheet__content.is-dragging {
-        transition: none;
+        transition: transform 0.1s ease-out;
       }
       .story-sheet__handle-wrapper {
         width: 100%;
@@ -707,6 +717,9 @@
         color: var(--text-main);
         margin-bottom: 6px;
         line-height: 1.25;
+      }
+      .story-view__title:focus {
+        outline: none;
       }
       .story-view__meta {
         font-size: 13px;
@@ -1057,7 +1070,7 @@
     <template id="storyContentTemplate">
       <div class="story-view is-active">
         <div class="story-header">
-          <h3 class="story-view__title" tabindex="0">Judul</h3>
+          <h3 class="story-view__title" tabindex="-1">Judul</h3>
           <span class="story-view__meta" id="storyMeta">Informasi • Meta</span>
         </div>
         <div class="story-body" tabindex="0">
@@ -1105,9 +1118,8 @@
 
       const updateVideoUI = () => {
         const data = videoPlaylist[currentVideoIndex];
-
         const progressFill = document.getElementById('storyProgressFill');
-        if (progressFill) progressFill.style.width = '0%';
+        if (progressFill) progressFill.style.transform = 'scaleX(0)';
 
         document.querySelector('.story-excerpt__badge').innerText = data.badge;
         document.querySelector('.story-excerpt__title').innerText = data.title;
@@ -1136,12 +1148,14 @@
           isDragging: false,
           animFrameId: null,
           lastClickTime: 0,
+          isAnimating: false,
         };
 
         const domRefs = {
           layoutWrapper: document.getElementById('layoutWrapper'),
           groupWrapper: document.getElementById('storyGroupWrapper'),
           mainContainer: document.getElementById('storyContainer'),
+          storyViewport: document.querySelector('.story-viewport'),
           progressFill: document.getElementById('storyProgressFill'),
           mobileSheet: document.getElementById('storySheet'),
           mobileHandle: document.getElementById('storySheetHandle'),
@@ -1179,13 +1193,28 @@
         };
         [domRefs.mobileSheet, domRefs.tabletPopup, domRefs.dashboardCard].forEach(injectTemplate);
 
+        let lastSyncCheck = 0;
+
         const loopProgress = () => {
           if (!state.isOpen && player && player.getPlayerState() === YT.PlayerState.PLAYING) {
             const duration = player.getDuration();
             const currentTime = player.getCurrentTime();
+
             if (duration > 0) {
-              const percent = (currentTime / duration) * 100;
-              domRefs.progressFill.style.width = `${percent}%`;
+              const progress = currentTime / duration;
+              domRefs.progressFill.style.transform = `scaleX(${progress})`;
+            }
+
+            if (ambientPlayer && typeof ambientPlayer.getCurrentTime === 'function') {
+              const now = performance.now();
+              if (now - lastSyncCheck > 1000) {
+                const ambientTime = ambientPlayer.getCurrentTime();
+                const timeDiff = Math.abs(currentTime - ambientTime);
+                if (timeDiff > 0.4) {
+                  ambientPlayer.seekTo(currentTime, true);
+                }
+                lastSyncCheck = now;
+              }
             }
             state.animFrameId = requestAnimationFrame(loopProgress);
           } else {
@@ -1195,7 +1224,7 @@
 
         const startProgressBar = () => {
           if (state.animFrameId) cancelAnimationFrame(state.animFrameId);
-          domRefs.progressFill.style.width = '0%';
+          domRefs.progressFill.style.transform = 'scaleX(0)';
           state.animFrameId = requestAnimationFrame(loopProgress);
         };
 
@@ -1223,43 +1252,68 @@
             domRefs.btnNextStory.classList.toggle('is-disabled', currentVideoIndex === videoPlaylist.length - 1);
         };
 
+        // --- ANIMASI SLIDE TRANSITION ---
+        const slideTransition = (direction, callback) => {
+          const viewport = domRefs.storyViewport;
+          if (!viewport) return callback();
+
+          state.isAnimating = true;
+
+          const outTransform = direction === 'next' ? 'translateY(-100%) scale(0.95)' : 'translateY(100%) scale(0.95)';
+          const inTransform = direction === 'next' ? 'translateY(100%) scale(0.95)' : 'translateY(-100%) scale(0.95)';
+
+          viewport.style.transition = 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.35s ease';
+          viewport.style.transform = outTransform;
+          viewport.style.opacity = '0';
+
+          setTimeout(() => {
+            callback();
+
+            viewport.style.transition = 'none';
+            viewport.style.transform = inTransform;
+            void viewport.offsetHeight;
+
+            viewport.style.transition = 'transform 0.45s cubic-bezier(0.34, 1.5, 0.64, 1), opacity 0.4s ease';
+            viewport.style.transform = 'translateY(0) scale(1)';
+            viewport.style.opacity = '1';
+
+            setTimeout(() => {
+              viewport.style.transition = '';
+              viewport.style.transform = '';
+              viewport.style.opacity = '';
+              state.isAnimating = false;
+            }, 450);
+          }, 350);
+        };
+
         const nextVideo = (e) => {
           if (e) e.stopPropagation();
+          if (state.isAnimating) return;
           if (currentVideoIndex < videoPlaylist.length - 1) {
-            currentVideoIndex++;
             if (state.isOpen) closeContext();
-            updateVideoUI();
+            slideTransition('next', () => {
+              currentVideoIndex++;
+              updateVideoUI();
+            });
           }
         };
 
         const prevVideo = (e) => {
           if (e) e.stopPropagation();
+          if (state.isAnimating) return;
           if (currentVideoIndex > 0) {
-            currentVideoIndex--;
             if (state.isOpen) closeContext();
-            updateVideoUI();
-          }
-        };
-
-        const handleStoryClick = (e) => {
-          if (e) e.stopPropagation();
-          const screenWidth = window.innerWidth;
-          const clickX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-
-          if (clickX < screenWidth * 0.25) {
-            if (currentVideoIndex > 0) prevVideo();
-          } else if (clickX > screenWidth * 0.75) {
-            if (currentVideoIndex < videoPlaylist.length - 1) nextVideo();
-          } else {
-            togglePlayPause();
+            slideTransition('prev', () => {
+              currentVideoIndex--;
+              updateVideoUI();
+            });
           }
         };
 
         const closeStory = (e) => {
           if (e) e.stopPropagation();
-          if (player) player.pauseVideo();
+          if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
           if (ambientPlayer && typeof ambientPlayer.pauseVideo === 'function') ambientPlayer.pauseVideo();
-
           domRefs.layoutWrapper.style.opacity = '0';
           setTimeout(() => {
             domRefs.layoutWrapper.style.display = 'none';
@@ -1268,7 +1322,7 @@
 
         const togglePlayPause = (e) => {
           if (e) e.stopPropagation();
-          if (!player) return;
+          if (!player || typeof player.getPlayerState !== 'function') return;
 
           const now = Date.now();
           if (now - state.lastClickTime < 300) return;
@@ -1290,7 +1344,7 @@
 
         const toggleMute = (e) => {
           if (e) e.stopPropagation();
-          if (!player) return;
+          if (!player || typeof player.isMuted !== 'function') return;
           if (player.isMuted()) {
             player.unMute();
             domRefs.btnMute.innerText = '🔊';
@@ -1300,98 +1354,44 @@
           }
         };
 
-        const trapFocus = (e) => {
-          if (!state.isOpen) return;
-          const activeCtx = getActiveContext();
-          const focusableElements = activeCtx.querySelectorAll(
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-          );
-          if (focusableElements.length === 0) return;
-
-          const firstElement = focusableElements[0];
-          const lastElement = focusableElements[focusableElements.length - 1];
-
-          if (e.key === 'Tab') {
-            if (e.shiftKey) {
-              if (document.activeElement === firstElement) {
-                lastElement.focus();
-                e.preventDefault();
-              }
-            } else {
-              if (document.activeElement === lastElement) {
-                firstElement.focus();
-                e.preventDefault();
-              }
-            }
-          } else if (e.key === 'Escape') {
-            closeContext();
-          }
-        };
-
         const openContext = () => {
           const ctx = getActiveContext();
           if (!ctx) return;
-
           domRefs.layoutWrapper.classList.remove('is-clean-mode');
           domRefs.iconEnter.style.display = 'block';
           domRefs.iconExit.style.display = 'none';
-
           state.isOpen = true;
           domRefs.layoutWrapper.classList.add('is-ui-open');
           ctx.classList.add('is-active');
 
           if (window.innerWidth < 1366) {
-            if (player) player.pauseVideo();
+            if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
             if (ambientPlayer && typeof ambientPlayer.pauseVideo === 'function') ambientPlayer.pauseVideo();
           }
           closeReactionMenu();
 
-          document.addEventListener('keydown', trapFocus);
-          const closeBtn = ctx.querySelector('.story-close-btn');
-          if (closeBtn) setTimeout(() => closeBtn.focus(), 100);
+          setTimeout(() => {
+            const titleEl = ctx.querySelector('.story-view__title');
+            if (titleEl) titleEl.focus();
+          }, 100);
         };
 
         const closeContext = () => {
           if (!state.isOpen) return;
           state.isOpen = false;
           domRefs.layoutWrapper.classList.remove('is-ui-open');
-
           domRefs.mobileSheet.classList.remove('is-active');
           domRefs.tabletPopup.classList.remove('is-active');
           domRefs.dashboardCard.classList.remove('is-active');
-
           domRefs.mobileSheet.querySelector('.story-sheet__content').style.transform = '';
 
           if (window.innerWidth < 1366) {
-            if (player) player.playVideo();
+            if (player && typeof player.playVideo === 'function') player.playVideo();
             if (ambientPlayer && typeof ambientPlayer.playVideo === 'function') ambientPlayer.playVideo();
           }
 
-          document.removeEventListener('keydown', trapFocus);
-          domRefs.layoutWrapper.focus();
+          domRefs.btnOpenContext.focus();
         };
-
-        window.addEventListener('resize', () => {
-          if (state.isOpen) closeContext();
-        });
-
-        document.addEventListener('visibilitychange', () => {
-          if (document.hidden && player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-            togglePlayPause();
-          }
-        });
-
-        document.addEventListener('keydown', (e) => {
-          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || state.isOpen) return;
-          if (e.code === 'Space') {
-            e.preventDefault();
-            togglePlayPause();
-          } else if (e.code === 'ArrowRight') {
-            nextVideo();
-          } else if (e.code === 'ArrowLeft') {
-            prevVideo();
-          }
-        });
 
         const toggleReactionMenu = (e) => {
           if (e) e.stopPropagation();
@@ -1406,9 +1406,7 @@
         const closeReactionMenu = () => {
           if (domRefs.reactionWrapper) {
             domRefs.reactionWrapper.classList.remove('is-active');
-            if (domRefs.btnToggleReaction) {
-              domRefs.btnToggleReaction.setAttribute('aria-expanded', 'false');
-            }
+            if (domRefs.btnToggleReaction) domRefs.btnToggleReaction.setAttribute('aria-expanded', 'false');
           }
         };
 
@@ -1461,31 +1459,135 @@
           closeReactionMenu();
         };
 
+        const initGestures = () => {
+          let touchStartX = 0,
+            touchStartY = 0;
+          let touchEndTime = 0;
+          let clickTimer = null;
+          let longPressTimer = null;
+          let isLongPressActive = false;
+          let isSwiping = false;
+
+          const layer = domRefs.storyClickLayer;
+
+          layer.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            return false;
+          });
+
+          layer.addEventListener(
+            'touchstart',
+            (e) => {
+              if (state.isAnimating) return;
+
+              touchStartX = e.touches[0].clientX;
+              touchStartY = e.touches[0].clientY;
+              isLongPressActive = false;
+              isSwiping = false;
+
+              longPressTimer = setTimeout(() => {
+                isLongPressActive = true;
+                domRefs.layoutWrapper.classList.add('is-clean-mode');
+                if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                  player.pauseVideo();
+                }
+              }, 400);
+            },
+            { passive: true },
+          );
+
+          layer.addEventListener(
+            'touchmove',
+            (e) => {
+              if (state.isAnimating) return;
+              const dx = e.touches[0].clientX - touchStartX;
+              const dy = e.touches[0].clientY - touchStartY;
+
+              if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                clearTimeout(longPressTimer);
+                isSwiping = true;
+              }
+            },
+            { passive: true },
+          );
+
+          layer.addEventListener('touchend', (e) => {
+            if (state.isAnimating) return;
+            clearTimeout(longPressTimer);
+            const touchEndY = e.changedTouches[0].clientY;
+            const dy = touchEndY - touchStartY;
+
+            if (isLongPressActive) {
+              domRefs.layoutWrapper.classList.remove('is-clean-mode');
+              if (player && typeof player.playVideo === 'function') player.playVideo();
+              return;
+            }
+
+            if (isSwiping && Math.abs(dy) > 50) {
+              if (dy > 0) prevVideo();
+              else nextVideo();
+              return;
+            }
+
+            if (!isSwiping) {
+              const currentTime = new Date().getTime();
+              const tapLength = currentTime - touchEndTime;
+              touchEndTime = currentTime;
+
+              if (tapLength < 300 && tapLength > 0) {
+                clearTimeout(clickTimer);
+                react('❤️');
+                flashIcon('❤️');
+              } else {
+                clickTimer = setTimeout(() => {
+                  togglePlayPause();
+                }, 250);
+              }
+            }
+          });
+
+          layer.addEventListener('mousedown', (e) => {
+            if (e.pointerType === 'mouse') {
+              togglePlayPause();
+            }
+          });
+        };
+
         const initDrag = () => {
           let rAFDrag = null;
+          const contentSheet = domRefs.mobileSheet.querySelector('.story-sheet__content');
 
           const move = (e) => {
             if (!state.isDragging || window.innerWidth >= 768) return;
             if (e.cancelable) e.preventDefault();
-
             if (rAFDrag) cancelAnimationFrame(rAFDrag);
             rAFDrag = requestAnimationFrame(() => {
               const y = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-              state.currentY = Math.max(0, y - state.startY);
-              domRefs.mobileSheet.querySelector('.story-sheet__content').style.transform =
-                `translateY(${state.currentY}px)`;
+              state.currentY = y - state.startY;
+
+              if (state.currentY < 0) {
+                state.currentY = state.currentY * 0.2;
+              }
+
+              contentSheet.style.transform = `translateY(${state.currentY > 0 ? state.currentY : state.currentY}px)`;
             });
           };
 
           const end = () => {
             if (!state.isDragging || window.innerWidth >= 768) return;
             state.isDragging = false;
+            contentSheet.classList.remove('is-dragging');
+
             window.removeEventListener('mousemove', move);
             window.removeEventListener('touchmove', move);
             window.removeEventListener('mouseup', end);
             window.removeEventListener('touchend', end);
-            if (state.currentY > 120) closeContext();
-            else domRefs.mobileSheet.querySelector('.story-sheet__content').style.transform = '';
+
+            if (state.currentY > 120) {
+              closeContext();
+            } else {
+              contentSheet.style.transform = '';
+            }
             state.currentY = 0;
           };
 
@@ -1493,6 +1595,8 @@
             if (window.innerWidth >= 768) return;
             state.startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
             state.isDragging = true;
+            contentSheet.classList.add('is-dragging');
+
             window.addEventListener('mousemove', move);
             window.addEventListener('touchmove', move, { passive: false });
             window.addEventListener('mouseup', end);
@@ -1505,54 +1609,43 @@
           }
         };
 
-        initDrag();
-
-        // LOGIKA BARU: Event Delegation Terpusat
         const initEventListeners = () => {
+          initGestures();
+          initDrag();
+
+          document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || state.isOpen || state.isAnimating)
+              return;
+            if (e.code === 'Space') {
+              e.preventDefault();
+              togglePlayPause();
+            } else if (e.code === 'ArrowDown' || e.code === 'ArrowRight') {
+              nextVideo();
+            } else if (e.code === 'ArrowUp' || e.code === 'ArrowLeft') {
+              prevVideo();
+            }
+          });
+
           document.addEventListener('click', (e) => {
             const target = e.target;
+            if (target.closest('.story-close-btn') || target.closest('.overlay-backdrop')) return closeContext();
 
-            // ==========================================
-            // 1. KELOMPOK WAJIB DELEGASI (Class & Elemen Ganda)
-            // ==========================================
-
-            // Tombol close atau klik area gelap (backdrop)
-            if (target.closest('.story-close-btn') || target.closest('.overlay-backdrop')) {
-              return closeContext();
-            }
-
-            // Tombol emoji reaksi
             const reactionBtn = target.closest('.reaction-option-btn');
             if (reactionBtn) {
               const emoji = reactionBtn.getAttribute('data-reaction');
               return react(emoji, e);
             }
 
-            // ==========================================
-            // 2. KELOMPOK BISA DELEGASI (Elemen Spesifik / ID)
-            // ==========================================
-
-            // Kontrol Media & Navigasi
             if (target.closest('#btnPlayPause')) return togglePlayPause(e);
             if (target.closest('#btnMute')) return toggleMute(e);
             if (target.closest('#btnPrevStory')) return prevVideo(e);
             if (target.closest('#btnNextStory')) return nextVideo(e);
             if (target.closest('#btnStoryClosePlayer')) return closeStory(e);
-
-            // UI Ekstra & Menu context
             if (target.closest('#btnOpenContext')) return openContext();
             if (target.closest('#btnToggleReaction')) return toggleReactionMenu(e);
             if (target.closest('#btnShare')) return nativeShare();
             if (target.closest('#btnCleanMode')) return toggleCleanMode(e);
 
-            // Area klik utama video (kiri/kanan/tengah)
-            if (target.closest('#storyClickLayer')) return handleStoryClick(e);
-
-            // ==========================================
-            // 3. LOGIKA KLIK DI LUAR ELEMEN (Outside Click)
-            // ==========================================
-
-            // Menutup menu reaksi jika user mengklik di luar area reactionWrapper
             if (domRefs.reactionWrapper && !domRefs.reactionWrapper.contains(target)) {
               closeReactionMenu();
             }
@@ -1577,7 +1670,6 @@
 
       function onYouTubeIframeAPIReady() {
         updateVideoUI();
-
         const initialVideoId = videoPlaylist[currentVideoIndex].id;
 
         const ytOptions = {
@@ -1614,14 +1706,24 @@
               if (e.data === YT.PlayerState.PLAYING) {
                 if (btn) btn.innerText = '⏸️';
                 container.classList.remove('is-paused');
-                if (ambientPlayer && typeof ambientPlayer.seekTo === 'function') {
+
+                if (ambientPlayer && typeof ambientPlayer.playVideo === 'function') {
                   ambientPlayer.seekTo(player.getCurrentTime(), true);
+                  ambientPlayer.playVideo();
                 }
                 StoryManager.startProgressBar();
               } else if (e.data === YT.PlayerState.PAUSED) {
                 if (btn) btn.innerText = '▶️';
                 container.classList.add('is-paused');
                 StoryManager.stopProgressBar();
+
+                if (ambientPlayer && typeof ambientPlayer.pauseVideo === 'function') {
+                  ambientPlayer.pauseVideo();
+                }
+              } else if (e.data === YT.PlayerState.BUFFERING) {
+                if (ambientPlayer && typeof ambientPlayer.pauseVideo === 'function') {
+                  ambientPlayer.pauseVideo();
+                }
               } else if (e.data === YT.PlayerState.ENDED) {
                 StoryManager.stopProgressBar();
                 e.target.seekTo(0);
