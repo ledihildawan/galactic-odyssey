@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>Telkomsel Story - The Perfect Masterpiece</title>
+    <title>Telkomsel Story - URL Auto-Detect</title>
     <style>
       :root {
         --brand-red: #ee2d24;
@@ -428,7 +428,6 @@
       .reaction-wrapper.is-active .reaction-options {
         pointer-events: auto;
       }
-
       .reaction-option-btn {
         font-size: 20px;
         opacity: 0;
@@ -444,7 +443,6 @@
         background: rgba(255, 255, 255, 0.9);
         color: var(--brand-dark);
       }
-
       .reaction-option-btn:nth-child(1) {
         transition-delay: 0s;
       }
@@ -457,7 +455,6 @@
       .reaction-option-btn:nth-child(4) {
         transition-delay: 0.12s;
       }
-
       .reaction-wrapper.is-active .reaction-option-btn:nth-child(4) {
         transition-delay: 0s;
       }
@@ -471,7 +468,6 @@
         transition-delay: 0.15s;
       }
 
-      /* Tampilkan UI saat ready */
       .layout-wrapper.is-ready
         :is(.story-excerpt, .story-player-actions, .story-progress-bar-wrapper, .story-top-actions) {
         opacity: 1;
@@ -1010,55 +1006,74 @@
     </template>
 
     <script>
+      // ================= YOUTUBE URL PARSER =================
+      function parseYouTubeData(url) {
+        let videoId = '';
+        let isShort = false;
+
+        if (url.includes('/shorts/')) {
+          isShort = true;
+          videoId = url.substring(url.indexOf('/shorts/') + 8).split('?')[0];
+        } else {
+          isShort = false;
+          const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+          const match = url.match(regExp);
+          if (match && match[2].length === 11) {
+            videoId = match[2];
+          }
+        }
+        return { videoId, isShort };
+      }
+
       let player, ambientPlayer;
       let currentVideoIndex = 0;
 
       const thumbnailCache = new Map();
 
+      // ================= PLAYLIST BARU MENGGUNAKAN URL =================
       const videoPlaylist = [
         {
-          id: 'lxSM-MYJsA8',
+          url: 'https://www.youtube.com/watch?v=lxSM-MYJsA8',
           badge: 'Match Highlight',
           title: 'Highlight Lengkap Gol Liga Champions Matchday 7! 🔥',
           meta: 'UEFA Champions League • 2 Jam yang lalu',
-          excerpt:
-            'Semua gol dari Matchday ke-7 Liga Champions UEFA! Laga penuh aksi, kejutan tak terduga, dan gol-gol spektakuler.',
-          content:
-            '<p>Saksikan cuplikan lengkap seluruh gol dari ajang UEFA Champions League Matchday ke-7! Pekan ini menghadirkan laga penuh aksi dan kejutan tak terduga, salah satunya saat Bodø/Glimt secara dramatis menumbangkan Manchester City dengan skor 3-1.</p><p>Di laga lain, Arsenal sukses keluar sebagai pemenang dalam duel sengit kontra finalis musim lalu, Inter Milan. Sementara itu, Real Madrid kembali menunjukkan kelasnya dengan melumat AS Monaco 6-1 di hadapan publik sendiri.</p><p>Gol mana yang menjadi favoritmu di pekan ini? Persaingan menuju fase gugur <strong>semakin memanas!</strong></p>',
+          excerpt: 'Semua gol dari Matchday ke-7 Liga Champions UEFA! Laga penuh aksi, kejutan tak terduga.',
+          content: '<p>Saksikan cuplikan lengkap seluruh gol dari ajang UEFA Champions League Matchday ke-7...</p>',
         },
         {
-          id: 'VsVzlXU3u9k',
+          url: 'https://www.youtube.com/shorts/Km5xz7NKqlA',
           badge: 'Tips & Trik',
           title: 'Trik Ampuh Meningkatkan Skill Dribbling Sepak Bola ⚽',
           meta: 'Football Skills • 5 Jam yang lalu',
-          excerpt:
-            'Panduan latihan penguasaan bola jarak dekat, kecepatan, dan kelincahan berbelok untuk melewati bek lawan dengan mudah.',
-          content:
-            '<p>Latihan ini berfokus pada penguasaan <i>close control</i>, kecepatan menggiring bola, dan kelincahan berbelok. Mulailah dengan berlatih dribbling menggunakan sisi dalam dan luar kaki melewati rintangan (<i>cones</i>). Latihan dasar ini sangat penting agar kamu terbiasa menembus rapatnya barisan pertahanan lawan.</p><p>Setelah itu, tingkatkan intensitas dengan melakukan <i>zigzag turns</i> secara cepat dan tajam. Ingat, sentuhan pertama (<i>first touch</i>) yang sempurna akan memberimu waktu ekstra untuk mengambil keputusan krusial sebelum melepaskan tembakan mematikan (<i>finishing</i>) ke gawang lawan.</p>',
+          excerpt: 'Panduan latihan penguasaan bola jarak dekat, kecepatan, dan kelincahan berbelok.',
+          content: '<p>Latihan ini berfokus pada penguasaan <i>close control</i>, kecepatan menggiring bola...</p>',
         },
         {
-          id: 'jqbr2VED--0',
+          url: 'https://www.youtube.com/watch?v=p-2feskqE3w',
           badge: 'Update Transfer',
           title: 'Update Bursa Transfer: Manuver Mengejutkan Arsenal & Liverpool 💸',
           meta: 'Transfer News • 1 Hari yang lalu',
-          excerpt:
-            'Arsenal incar Julian Alvarez, Liverpool bahas potensi penjualan Andy Robertson, serta update "Here We Go" terbaru.',
-          content:
-            '<p>Bursa transfer musim ini kembali memanas! Kabar mengejutkan datang dari kubu Arsenal yang dilaporkan tengah serius membidik <strong>Julian Alvarez</strong> guna mempertajam lini serang mereka.</p><p>Di tempat lain, Liverpool dikabarkan sedang melakukan pembicaraan intensif terkait potensi penjualan bek sayap andalan mereka, Andy Robertson. Tak ketinggalan, ada konfirmasi <i>"Here We Go"</i> terbaru dari jurnalis pakar transfer Fabrizio Romano mengenai pergerakan taktis Aston Villa. Efek domino dari rentetan transfer ini diprediksi akan segera mengubah peta kekuatan tim-tim elite Eropa!</p>',
+          excerpt: 'Arsenal incar Julian Alvarez, Liverpool bahas potensi penjualan Andy Robertson.',
+          content: '<p>Bursa transfer musim ini kembali memanas! Kabar mengejutkan datang dari kubu Arsenal...</p>',
         },
       ];
 
       const urlParams = new URLSearchParams(window.location.search);
       const videoParam = urlParams.get('v');
       if (videoParam) {
-        const foundIndex = videoPlaylist.findIndex((v) => v.id === videoParam);
+        const foundIndex = videoPlaylist.findIndex((v) => parseYouTubeData(v.url).videoId === videoParam);
         if (foundIndex > -1) currentVideoIndex = foundIndex;
       }
 
       const updateEls = (sel, prop, val) => document.querySelectorAll(sel).forEach((el) => (el[prop] = val));
 
+      // ================= UPDATE UI LOGIC =================
       const updateVideoUI = () => {
         const data = videoPlaylist[currentVideoIndex];
+        const ytData = parseYouTubeData(data.url);
+        const currentVideoId = ytData.videoId;
+        const isVideoShort = ytData.isShort;
+
         const progressFill = document.getElementById('storyProgressFill');
         if (progressFill) progressFill.style.transform = 'scaleX(0)';
 
@@ -1068,12 +1083,18 @@
         updateEls('.story-view__meta', 'innerText', data.meta);
         updateEls('.story-body__cms-content', 'innerHTML', data.content);
 
+        const ytPlayer = document.getElementById('youtubePlayer');
         const thumbOverlay = document.getElementById('thumbnailOverlay');
+
+        const objectFitStyle = isVideoShort ? 'cover' : 'contain';
+        if (ytPlayer) ytPlayer.style.objectFit = objectFitStyle;
+
         if (thumbOverlay) {
           thumbOverlay.style.transition = 'none';
+          thumbOverlay.style.objectFit = objectFitStyle;
 
-          const maxResUrl = `https://i.ytimg.com/vi/${data.id}/maxresdefault.jpg`;
-          const hqResUrl = `https://i.ytimg.com/vi/${data.id}/hqdefault.jpg`;
+          const maxResUrl = `https://i.ytimg.com/vi/${currentVideoId}/maxresdefault.jpg`;
+          const hqResUrl = `https://i.ytimg.com/vi/${currentVideoId}/hqdefault.jpg`;
 
           thumbOverlay.onload = function () {
             if (this.naturalWidth <= 120 && this.src.includes('maxresdefault')) {
@@ -1088,7 +1109,7 @@
               this.src = hqResUrl;
             } else {
               this.style.display = 'none';
-              thumbnailCache.set(data.id, 'error');
+              thumbnailCache.set(currentVideoId, 'error');
             }
           };
 
@@ -1096,7 +1117,8 @@
           thumbOverlay.style.opacity = '1';
         }
 
-        const preloadThumbnail = (id) => {
+        const preloadThumbnail = (urlToPreload) => {
+          const id = parseYouTubeData(urlToPreload).videoId;
           if (!thumbnailCache.has(id)) {
             thumbnailCache.set(id, 'loading');
             const img = new Image();
@@ -1120,19 +1142,20 @@
           }
         };
 
-        if (currentVideoIndex < videoPlaylist.length - 1) preloadThumbnail(videoPlaylist[currentVideoIndex + 1].id);
-        if (currentVideoIndex > 0) preloadThumbnail(videoPlaylist[currentVideoIndex - 1].id);
+        if (currentVideoIndex < videoPlaylist.length - 1) preloadThumbnail(videoPlaylist[currentVideoIndex + 1].url);
+        if (currentVideoIndex > 0) preloadThumbnail(videoPlaylist[currentVideoIndex - 1].url);
 
-        const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?v=${data.id}`;
-        if (window.location.search !== `?v=${data.id}`) window.history.pushState({ path: newUrl }, '', newUrl);
+        const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?v=${currentVideoId}`;
+        if (window.location.search !== `?v=${currentVideoId}`) window.history.pushState({ path: newUrl }, '', newUrl);
 
-        player?.loadVideoById?.(data.id);
-        ambientPlayer?.loadVideoById?.(data.id);
+        player?.loadVideoById?.(currentVideoId);
+        ambientPlayer?.loadVideoById?.(currentVideoId);
 
         StoryManager.startProgressBar();
         StoryManager.checkNavState();
       };
 
+      // ================= MANAJEMEN UI & GESTUR =================
       window.StoryManager = (() => {
         const state = {
           isOpen: false,
@@ -1172,10 +1195,12 @@
           storyViewport: document.querySelector('.story-viewport'),
         };
 
-        const getActiveContext = () => {
-          const w = window.innerWidth;
-          return w >= 1366 ? domRefs.storyCardDashboard : w >= 768 ? domRefs.storyPopup : domRefs.storySheet;
-        };
+        const getActiveContext = () =>
+          window.innerWidth >= 1366
+            ? domRefs.storyCardDashboard
+            : window.innerWidth >= 768
+              ? domRefs.storyPopup
+              : domRefs.storySheet;
 
         [domRefs.storySheet, domRefs.storyPopup, domRefs.storyCardDashboard].forEach((el) => {
           const target = el?.querySelector('.story-dynamic-area');
@@ -1238,7 +1263,6 @@
           domRefs.storyProgressFill.style.transform = 'scaleX(0)';
           state.animFrameId = requestAnimationFrame(loopProgress);
         };
-
         const stopProgressBar = () => cancelAnimationFrame(state.animFrameId);
 
         let flashTimeout;
@@ -1247,13 +1271,10 @@
           if (!iconEl) return;
           clearTimeout(flashTimeout);
           if (iconStr) iconEl.innerText = iconStr;
-
           iconEl.className = 'story-center-play';
           if (type) iconEl.classList.add(type);
-
           if (type === 'is-flashing') flashTimeout = setTimeout(() => iconEl.classList.remove('is-flashing'), 500);
         };
-
         const flashIcon = (iconStr) => {
           toggleIcon('', '');
           void domRefs.centerPlayIndicator?.offsetWidth;
@@ -1273,6 +1294,9 @@
           hideSteadyIcon();
           if (domRefs['reaction-container']) domRefs['reaction-container'].innerHTML = '';
           domRefs.layoutWrapper?.classList.remove('is-clean-mode');
+
+          const topBtn = document.getElementById('btnPlayPause');
+          if (topBtn) topBtn.innerText = '⏸️';
 
           const ambientEl = document.getElementById('ambientPlayer');
           if (ambientEl) ambientEl.style.opacity = '0';
@@ -1372,10 +1396,8 @@
             domRefs['icon-exit-fs'].style.display = 'none';
             if (window.innerWidth < 1366) [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
             closeReactionMenu();
-
             domRefs.storyGroupWrapper?.setAttribute('aria-hidden', 'true');
             initFocusTrap(ctx);
-
             setTimeout(() => {
               const titleEl = ctx.querySelector('.story-view__title');
               if (titleEl) titleEl.focus();
@@ -1386,9 +1408,7 @@
             domRefs.storyPopup?.classList.remove('is-active');
             domRefs.storyCardDashboard?.classList.remove('is-active');
             domRefs.storySheet.querySelector('.story-sheet__content').style.transform = '';
-
             if (window.innerWidth < 1366) [player, ambientPlayer].forEach((p) => p?.playVideo?.());
-
             ctx.removeEventListener('keydown', handleFocusTrap);
             domRefs.storyGroupWrapper?.removeAttribute('aria-hidden');
             domRefs.btnOpenContext?.focus();
@@ -1446,7 +1466,6 @@
         const initProgressBarGestures = () => {
           let isScrubbing = false,
             wasPlaying = false;
-
           const updateSeek = (clientX) => {
             const rect = domRefs.storyProgressBarWrapper.getBoundingClientRect();
             const percentage = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
@@ -1454,39 +1473,32 @@
             const newTime = (player?.getDuration?.() ?? 0) * percentage;
             [player, ambientPlayer].forEach((p) => p?.seekTo?.(newTime, true));
           };
-
           const moveScrub = (e) => {
             if (!isScrubbing) return;
             if (e.cancelable) e.preventDefault();
             updateSeek(getClientX(e));
           };
-
           const stopScrub = () => {
             if (!isScrubbing) return;
             isScrubbing = false;
             if (wasPlaying) [player, ambientPlayer].forEach((p) => p?.playVideo?.());
-
             window.removeEventListener('mousemove', moveScrub);
             window.removeEventListener('touchmove', moveScrub);
             window.removeEventListener('mouseup', stopScrub);
             window.removeEventListener('touchend', stopScrub);
           };
-
           const startScrub = (e) => {
             isScrubbing = true;
             wasPlaying = player?.getPlayerState?.() === YT.PlayerState.PLAYING;
             if (wasPlaying) [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
             updateSeek(getClientX(e));
-
             window.addEventListener('mousemove', moveScrub);
             window.addEventListener('touchmove', moveScrub, { passive: false });
             window.addEventListener('mouseup', stopScrub);
             window.addEventListener('touchend', stopScrub);
           };
-
-          const wrapper = domRefs.storyProgressBarWrapper;
-          wrapper?.addEventListener('mousedown', startScrub);
-          wrapper?.addEventListener('touchstart', startScrub, { passive: true });
+          domRefs.storyProgressBarWrapper?.addEventListener('mousedown', startScrub);
+          domRefs.storyProgressBarWrapper?.addEventListener('touchstart', startScrub, { passive: true });
         };
 
         const initGestures = () => {
@@ -1507,7 +1519,6 @@
             startY = e.clientY;
             isLongPressActive = isSwiping = false;
             holdAction = e.target.getAttribute('data-action');
-
             longPressTimer = setTimeout(() => {
               isLongPressActive = true;
               if (holdAction === 'playpause') {
@@ -1520,7 +1531,6 @@
               }
             }, 400);
           });
-
           layer?.addEventListener('pointermove', (e) => {
             if (state.isAnimating || !startX) return;
             if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
@@ -1528,13 +1538,11 @@
               isSwiping = true;
             }
           });
-
           layer?.addEventListener('pointerup', (e) => {
             if (state.isAnimating || !startX) return;
             clearTimeout(longPressTimer);
             const dy = e.clientY - startY;
             startX = 0;
-
             if (isLongPressActive) {
               if (holdAction === 'playpause') {
                 domRefs.layoutWrapper?.classList.remove('is-clean-mode');
@@ -1545,9 +1553,7 @@
               }
               return;
             }
-
             if (isSwiping && Math.abs(dy) > 50) return switchVideo(dy > 0 ? -1 : 1);
-
             if (!isSwiping) {
               if (holdAction === 'rewind') {
                 seekVideo(-10);
@@ -1572,7 +1578,6 @@
               }
             }
           });
-
           layer?.addEventListener('pointercancel', () => {
             clearTimeout(longPressTimer);
             startX = 0;
@@ -1582,7 +1587,6 @@
         const initDrag = () => {
           let rAFDrag = null;
           const contentSheet = domRefs.storySheet?.querySelector('.story-sheet__content');
-
           const move = (e) => {
             if (!state.isDragging || window.innerWidth >= 768) return;
             if (e.cancelable) e.preventDefault();
@@ -1614,7 +1618,6 @@
             window.addEventListener('mouseup', end);
             window.addEventListener('touchend', end);
           };
-
           domRefs.storySheetHandle?.addEventListener('mousedown', start);
           domRefs.storySheetHandle?.addEventListener('touchstart', start, { passive: true });
         };
@@ -1623,16 +1626,13 @@
           initProgressBarGestures();
           initGestures();
           initDrag();
-
           let lastWheelTime = 0;
           window.addEventListener(
             'wheel',
             (e) => {
               if (e.target.closest('.story-body, .story-card, .story-sheet, .story-popup')) return;
-
               const now = Date.now();
               if (now - lastWheelTime < 800 || state.isAnimating) return;
-
               if (e.deltaY > 20) {
                 switchVideo(1);
                 lastWheelTime = now;
@@ -1685,14 +1685,13 @@
               },
             };
             for (let selector in actionMap) if (t.closest(selector)) return actionMap[selector](e);
-
             if (domRefs.reactionWrapper && !domRefs.reactionWrapper.contains(t)) closeReactionMenu();
           });
 
           window.addEventListener('popstate', () => {
             const v = new URLSearchParams(window.location.search).get('v');
             if (v) {
-              const foundIndex = videoPlaylist.findIndex((item) => item.id === v);
+              const foundIndex = videoPlaylist.findIndex((item) => parseYouTubeData(item.url).videoId === v);
               if (foundIndex > -1 && foundIndex !== currentVideoIndex) {
                 if (state.isAnimating) return;
                 resetVideoState();
@@ -1707,6 +1706,7 @@
         return { startProgressBar, stopProgressBar, checkNavState, showSteadyIcon, hideSteadyIcon };
       })();
 
+      // ================= INISIALISASI YOUTUBE API =================
       function loadYouTubeAPI() {
         const tag = document.createElement('script');
         tag.src = 'https://www.youtube.com/iframe_api';
@@ -1714,9 +1714,13 @@
       }
 
       function onYouTubeIframeAPIReady() {
+        const initialVideoUrl = videoPlaylist[currentVideoIndex].url;
+        const initialVideoId = parseYouTubeData(initialVideoUrl).videoId;
+
         updateVideoUI();
+
         const ytOptions = {
-          videoId: videoPlaylist[currentVideoIndex].id,
+          videoId: initialVideoId,
           playerVars: {
             autoplay: 1,
             controls: 0,
@@ -1735,17 +1739,14 @@
             onReady: (e) => {
               e.target.mute();
               e.target.playVideo();
-
               setTimeout(() => {
-                if (e.target.getPlayerState() !== YT.PlayerState.PLAYING) {
+                const playerState = e.target.getPlayerState();
+                if (playerState !== YT.PlayerState.PLAYING && playerState !== YT.PlayerState.BUFFERING) {
                   const topBtn = document.getElementById('btnPlayPause');
                   if (topBtn) topBtn.innerText = '▶️';
-
-                  const container = document.getElementById('storyContainer');
-                  container?.classList.add('is-paused');
+                  document.getElementById('storyContainer')?.classList.add('is-paused');
                 }
-              }, 1000);
-
+              }, 1500);
               document.getElementById('youtubePlayer').style.opacity = '1';
               document.getElementById('layoutWrapper').classList.add('is-ready');
             },
@@ -1761,20 +1762,14 @@
               if (e.data === YT.PlayerState.PLAYING) {
                 if (btn) btn.innerText = '⏸️';
                 container?.classList.remove('is-paused');
-
-                StoryManager.hideSteadyIcon();
-
                 if (thumbOverlay && thumbOverlay.style.display !== 'none') {
                   thumbOverlay.style.transition = 'opacity 0.6s ease';
                   thumbOverlay.style.opacity = '0';
                 }
-
                 ambientPlayer?.seekTo?.(player.getCurrentTime(), true);
                 ambientPlayer?.playVideo?.();
-
                 const ambientEl = document.getElementById('ambientPlayer');
                 if (ambientEl) ambientEl.style.opacity = '1';
-
                 StoryManager.startProgressBar();
               } else if (e.data === YT.PlayerState.PAUSED) {
                 if (btn) btn.innerText = '▶️';
