@@ -1252,6 +1252,13 @@
             domRefs.btnNextStory.classList.toggle('is-disabled', currentVideoIndex === videoPlaylist.length - 1);
         };
 
+        const resetVideoState = () => {
+          if (state.isOpen) closeContext();
+          closeReactionMenu();
+          domRefs.reactionContainer.innerHTML = '';
+          domRefs.layoutWrapper.classList.remove('is-clean-mode');
+        };
+
         // --- ANIMASI SLIDE TRANSITION ---
         const slideTransition = (direction, callback) => {
           const viewport = domRefs.storyViewport;
@@ -1290,7 +1297,7 @@
           if (e) e.stopPropagation();
           if (state.isAnimating) return;
           if (currentVideoIndex < videoPlaylist.length - 1) {
-            if (state.isOpen) closeContext();
+            resetVideoState();
             slideTransition('next', () => {
               currentVideoIndex++;
               updateVideoUI();
@@ -1302,7 +1309,7 @@
           if (e) e.stopPropagation();
           if (state.isAnimating) return;
           if (currentVideoIndex > 0) {
-            if (state.isOpen) closeContext();
+            resetVideoState();
             slideTransition('prev', () => {
               currentVideoIndex--;
               updateVideoUI();
