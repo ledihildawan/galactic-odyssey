@@ -930,6 +930,52 @@
           pointer-events: auto;
         }
       }
+
+      /* ================= PEEK FRAMES (Desktop/Tablet Only) ================= */
+      .story-peek {
+        display: none; /* Sembunyikan sepenuhnya di Mobile */
+      }
+
+      @media (min-width: 768px) {
+        .story-peek {
+          display: block;
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          background: #111111;
+          border-radius: var(--frame-radius);
+          z-index: 5;
+          opacity: 0;
+          visibility: hidden;
+          /* Hapus filter bawaan dan gunakan brightness agar item yang mengintip terlihat lebih gelap/non-aktif */
+          filter: brightness(0.4);
+          transition:
+            transform 0.6s var(--ease-spring),
+            opacity 0.6s var(--ease-spring),
+            filter 0.3s ease;
+          cursor: pointer;
+        }
+
+        /* Efek nyala saat kursor diarahkan ke frame yang mengintip */
+        .story-peek:hover {
+          opacity: 1 !important;
+          filter: brightness(0.6);
+        }
+
+        /* Geser tepat 100% ke atas + jarak/gap 24px (Tanpa efek Scale agar width sama) */
+        .story-group-wrapper.has-prev .story-peek--prev {
+          visibility: visible;
+          opacity: 1;
+          transform: translateY(calc(-100% - 24px));
+        }
+
+        /* Geser tepat 100% ke bawah + jarak/gap 24px (Tanpa efek Scale agar width sama) */
+        .story-group-wrapper.has-next .story-peek--next {
+          visibility: visible;
+          opacity: 1;
+          transform: translateY(calc(100% + 24px));
+        }
+      }
     </style>
   </head>
   <body>
@@ -938,7 +984,9 @@
     <div class="layout-wrapper" id="layoutWrapper" tabindex="-1">
       <div class="desktop-slider">
         <div class="story-group-wrapper" id="storyGroupWrapper">
+          <div class="story-peek story-peek--prev" id="peekPrev" aria-label="Video Sebelumnya"></div>
           <div class="story-container" id="storyContainer">
+            <div class="story-peek story-peek--next" id="peekNext" aria-label="Video Selanjutnya"></div>
             <div class="ambient-layer" id="ambientContainer">
               <div id="ambientPlayer"></div>
             </div>
@@ -1386,6 +1434,11 @@
         const checkNavState = () => {
           domRefs.btnPrevStory?.classList.toggle('is-disabled', currentVideoIndex === 0);
           domRefs.btnNextStory?.classList.toggle('is-disabled', currentVideoIndex === videoPlaylist.length - 1);
+
+          // [TAMBAHAN PEEK FRAME]
+          // Tambahkan class 'has-prev' atau 'has-next' berdasarkan posisi video saat ini
+          domRefs.storyGroupWrapper?.classList.toggle('has-prev', currentVideoIndex > 0);
+          domRefs.storyGroupWrapper?.classList.toggle('has-next', currentVideoIndex < videoPlaylist.length - 1);
         };
 
         const resetVideoState = () => {
@@ -1800,6 +1853,8 @@
               '#btnMute': toggleMute,
               '#btnPrevStory': () => switchVideo(-1),
               '#btnNextStory': () => switchVideo(1),
+              '#peekPrev': () => switchVideo(-1),
+              '#peekNext': () => switchVideo(1),
               '#btnStoryClosePlayer': closeStory,
               '#btnOpenContext': openContext,
               '#btnToggleReaction': toggleReactionMenu,
