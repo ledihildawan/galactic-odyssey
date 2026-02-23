@@ -988,7 +988,7 @@
         .story-card {
           display: flex;
           position: fixed;
-          right: -500px;
+          left: calc(50% + (100dvh * 9 / 32) + 24px);
           top: 50%;
           transform: translateY(-50%);
           margin: 0;
@@ -996,11 +996,12 @@
           pointer-events: none;
           transition: all 0.6s var(--ease-spring);
           z-index: 100;
+          transform: translateY(-50%) translateX(100px);
         }
         .layout-wrapper.is-ui-open .story-card {
           opacity: 1;
           pointer-events: auto;
-          right: 100px;
+          transform: translateY(-50%) translateX(calc((var(--card-width) + 24px) / -2));
         }
         .desktop-controls-wrapper {
           right: 40px;
