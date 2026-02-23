@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>Telkomsel Story - Performance & A11y Update</title>
+    <title>Telkomsel Story - Final Production Build</title>
     <style>
       :root {
         --brand-red: #ee2d24;
@@ -41,7 +41,7 @@
         outline-offset: 2px;
       }
 
-      /* [A11Y] Screen Reader Only - Sembunyikan secara visual tapi terbaca oleh sistem */
+      /* [A11Y] Screen Reader Only */
       .sr-only {
         position: absolute;
         width: 1px;
@@ -170,7 +170,7 @@
         transition: opacity 0.4s var(--ease-out);
       }
 
-      /* [EDGE CASE] Blur Background untuk Video 16:9 */
+      /* Background Blur Edge Case untuk Video 16:9 */
       .video-blur-bg {
         position: absolute;
         inset: -10%;
@@ -211,7 +211,7 @@
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.4s var(--ease-out);
-        z-index: 2; /* Di atas blur bg */
+        z-index: 2;
       }
 
       /* ================= LOADER ================= */
@@ -247,6 +247,48 @@
       .story-container.has-started.is-loading .story-loader {
         opacity: 1;
         pointer-events: auto;
+      }
+
+      /* ================= PEEK FRAMES (Desktop/Tablet Only) ================= */
+      .story-peek {
+        display: none;
+      }
+
+      @media (min-width: 768px) {
+        .story-peek {
+          display: block;
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          background: #111111;
+          border-radius: var(--frame-radius);
+          z-index: 5;
+          opacity: 0;
+          visibility: hidden;
+          filter: brightness(0.4);
+          transition:
+            transform 0.6s var(--ease-spring),
+            opacity 0.6s var(--ease-spring),
+            filter 0.3s ease;
+          cursor: pointer;
+        }
+
+        .story-peek:hover {
+          opacity: 1 !important;
+          filter: brightness(0.6);
+        }
+
+        .story-group-wrapper.has-prev .story-peek--prev {
+          visibility: visible;
+          opacity: 1;
+          transform: translateY(calc(-100% - 24px));
+        }
+
+        .story-group-wrapper.has-next .story-peek--next {
+          visibility: visible;
+          opacity: 1;
+          transform: translateY(calc(100% + 24px));
+        }
       }
 
       /* ================= LAYER EFEK & GESTURE ================= */
@@ -930,52 +972,6 @@
           pointer-events: auto;
         }
       }
-
-      /* ================= PEEK FRAMES (Desktop/Tablet Only) ================= */
-      .story-peek {
-        display: none; /* Sembunyikan sepenuhnya di Mobile */
-      }
-
-      @media (min-width: 768px) {
-        .story-peek {
-          display: block;
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          background: #111111;
-          border-radius: var(--frame-radius);
-          z-index: 5;
-          opacity: 0;
-          visibility: hidden;
-          /* Hapus filter bawaan dan gunakan brightness agar item yang mengintip terlihat lebih gelap/non-aktif */
-          filter: brightness(0.4);
-          transition:
-            transform 0.6s var(--ease-spring),
-            opacity 0.6s var(--ease-spring),
-            filter 0.3s ease;
-          cursor: pointer;
-        }
-
-        /* Efek nyala saat kursor diarahkan ke frame yang mengintip */
-        .story-peek:hover {
-          opacity: 1 !important;
-          filter: brightness(0.6);
-        }
-
-        /* Geser tepat 100% ke atas + jarak/gap 24px (Tanpa efek Scale agar width sama) */
-        .story-group-wrapper.has-prev .story-peek--prev {
-          visibility: visible;
-          opacity: 1;
-          transform: translateY(calc(-100% - 24px));
-        }
-
-        /* Geser tepat 100% ke bawah + jarak/gap 24px (Tanpa efek Scale agar width sama) */
-        .story-group-wrapper.has-next .story-peek--next {
-          visibility: visible;
-          opacity: 1;
-          transform: translateY(calc(100% + 24px));
-        }
-      }
     </style>
   </head>
   <body>
@@ -985,8 +981,8 @@
       <div class="desktop-slider">
         <div class="story-group-wrapper" id="storyGroupWrapper">
           <div class="story-peek story-peek--prev" id="peekPrev" aria-label="Video Sebelumnya"></div>
+
           <div class="story-container" id="storyContainer">
-            <div class="story-peek story-peek--next" id="peekNext" aria-label="Video Selanjutnya"></div>
             <div class="ambient-layer" id="ambientContainer">
               <div id="ambientPlayer"></div>
             </div>
@@ -1055,6 +1051,8 @@
               </div>
             </div>
           </div>
+
+          <div class="story-peek story-peek--next" id="peekNext" aria-label="Video Selanjutnya"></div>
         </div>
 
         <div class="story-card" id="storyCardDashboard">
@@ -1175,7 +1173,7 @@
         updateEls('.story-view__meta', 'innerText', data.meta);
         updateEls('.story-body__cms-content', 'innerHTML', data.content);
 
-        // [A11Y] Perbarui Teks ARIA Live untuk Screen Reader
+        // [A11Y]
         const a11yAnnouncer = document.getElementById('a11yAnnouncer');
         if (a11yAnnouncer) a11yAnnouncer.textContent = 'Memutar video: ' + data.title;
 
@@ -1187,6 +1185,7 @@
           const rawExcerpt = data.excerpt ? data.excerpt.trim() : '';
 
           if (rawExcerpt === '' && hasDetailContent) {
+            // Margin-left: 0 jika sendirian
             el.innerHTML = '<span class="story-read-more" style="margin-left: 0;">See more</span>';
           } else if (rawExcerpt === '') {
             el.innerHTML = '';
@@ -1231,7 +1230,6 @@
         const maxResUrl = `https://i.ytimg.com/vi/${currentVideoId}/maxresdefault.jpg`;
         const hqResUrl = `https://i.ytimg.com/vi/${currentVideoId}/hqdefault.jpg`;
 
-        // [EDGE CASE] Update Background Blur untuk video Non-Shorts (16:9)
         if (blurBg) {
           blurBg.style.backgroundImage = `url(${hqResUrl})`;
           blurBg.style.opacity = isVideoShort ? '0' : '1';
@@ -1295,7 +1293,6 @@
         const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?v=${currentVideoId}`;
         if (window.location.search !== `?v=${currentVideoId}`) window.history.pushState({ path: newUrl }, '', newUrl);
 
-        // [PERFORMANCE] Teknik Iframe Recycling. Sangat hemat memory, tidak perlu merombak iframe
         player?.loadVideoById?.(currentVideoId);
         ambientPlayer?.loadVideoById?.(currentVideoId);
 
@@ -1339,6 +1336,8 @@
             'storyGestureLayer',
             'btnToggleReaction',
             'btnOpenContext',
+            'peekPrev',
+            'peekNext',
           ]),
           storyViewport: document.querySelector('.story-viewport'),
         };
@@ -1435,8 +1434,7 @@
           domRefs.btnPrevStory?.classList.toggle('is-disabled', currentVideoIndex === 0);
           domRefs.btnNextStory?.classList.toggle('is-disabled', currentVideoIndex === videoPlaylist.length - 1);
 
-          // [TAMBAHAN PEEK FRAME]
-          // Tambahkan class 'has-prev' atau 'has-next' berdasarkan posisi video saat ini
+          // Memunculkan peek frames atas/bawah
           domRefs.storyGroupWrapper?.classList.toggle('has-prev', currentVideoIndex > 0);
           domRefs.storyGroupWrapper?.classList.toggle('has-next', currentVideoIndex < videoPlaylist.length - 1);
         };
@@ -1547,15 +1545,11 @@
           }
         };
 
-        // [A11Y] Dinamis Aria Label saat tombol Mute ditekan
         const toggleMute = () => {
           const isMuted = player?.isMuted?.();
           isMuted ? player?.unMute?.() : player?.mute?.();
-
           if (domRefs.btnMute) {
             domRefs.btnMute.innerText = isMuted ? '🔊' : '🔇';
-
-            // Mengubah perintah instruksi yang akan dilakukan jika user klik lagi
             domRefs.btnMute.setAttribute('aria-label', isMuted ? 'Mute Audio' : 'Unmute Audio');
           }
         };
@@ -1653,7 +1647,6 @@
           const moveScrub = (e) => {
             if (!isScrubbing) return;
             if (e.cancelable) e.preventDefault();
-            // [PERFORMANCE] Bisa juga dibungkus RequestAnimationFrame, tapi getBoundingClientRect cukup ringan jika tidak kompleks
             updateSeek(getClientX(e));
           };
           const stopScrub = () => {
@@ -1901,10 +1894,8 @@
         document.head.appendChild(tag);
       }
 
-      // [PERFORMANCE] Fungsi khusus untuk membuat Ambient Player agar dinamis saat resize
       function createAmbientPlayer(videoId) {
         if (window.innerWidth < 768 || ambientPlayer) return;
-
         ambientPlayer = new YT.Player('ambientPlayer', {
           videoId: videoId,
           playerVars: { autoplay: 1, controls: 0, loop: 0, mute: 1, modestbranding: 1, playsinline: 1 },
@@ -1952,6 +1943,8 @@
                   document.getElementById('storyContainer')?.classList.add('is-paused');
                 }
               }, 1500);
+
+              // Pembukaan Interaksi (Opacity player tidak diset '1' di sini agar transisi first load mulus)
               document.getElementById('layoutWrapper').classList.add('is-ready');
             },
             onError: (e) => {
@@ -2002,21 +1995,16 @@
           },
         });
 
-        // Buat ambient player di awal hanya jika diload di layar besar
         createAmbientPlayer(initialVideoId);
 
-        // [PERFORMANCE] Throttling Resize Event dengan RequestAnimationFrame
         let resizeTimer;
         window.addEventListener('resize', () => {
           if (resizeTimer) cancelAnimationFrame(resizeTimer);
           resizeTimer = requestAnimationFrame(() => {
             if (window.innerWidth < 768) {
-              // Jika masuk resolusi HP, hancurkan iframe ambient untuk hemat RAM
               if (ambientPlayer && ambientPlayer.destroy) {
                 ambientPlayer.destroy();
                 ambientPlayer = null;
-
-                // YT.Player me-replace div. Kita kembalikan div placeholder-nya agar tidak hilang selamanya
                 const ambientContainer = document.getElementById('ambientContainer');
                 if (ambientContainer && !document.getElementById('ambientPlayer')) {
                   const newDiv = document.createElement('div');
@@ -2025,7 +2013,6 @@
                 }
               }
             } else {
-              // Jika dilebarkan kembali ke Desktop, hidupkan kembali ambient playernya
               if (!ambientPlayer && player && player.getVideoData) {
                 const currentData = player.getVideoData();
                 const currentVid =
