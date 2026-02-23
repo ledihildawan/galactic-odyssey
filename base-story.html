@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>Telkomsel Story - URL Detect & Multiple Categories</title>
+    <title>Telkomsel Story - Full Features</title>
     <style>
       :root {
         --brand-red: #ee2d24;
@@ -142,7 +142,6 @@
       .story-container.is-paused .story-video-wrapper {
         filter: brightness(0.65) grayscale(0.2);
       }
-
       .story-video-wrapper::after {
         content: '';
         position: absolute;
@@ -164,13 +163,11 @@
         inset: 0;
         width: 100%;
         height: 100%;
-        object-fit: contain;
         z-index: 8;
         opacity: 1;
         pointer-events: none;
         background: var(--brand-dark);
       }
-
       #youtubePlayer {
         position: absolute;
         inset: 0;
@@ -178,7 +175,6 @@
         height: 100%;
         border: none;
         pointer-events: none;
-        object-fit: cover;
         opacity: 0;
         transition: opacity 0.8s var(--ease-out);
       }
@@ -347,6 +343,7 @@
         display: block;
       }
 
+      /* ================= BADGE / KATEGORI ================= */
       :is(.story-excerpt__badges, .story-view__badges) {
         display: flex;
         flex-wrap: wrap;
@@ -417,6 +414,7 @@
         pointer-events: none;
       }
 
+      /* ================= REACTIONS ================= */
       .reaction-wrapper {
         position: relative;
         display: flex;
@@ -744,7 +742,7 @@
         margin-bottom: 16px;
       }
 
-      /* ================= HOVER EFFECTS & RESPONSIVE ================= */
+      /* ================= RESPONSIVE & HOVER ================= */
       @media (hover: hover) and (pointer: fine) {
         .layout-wrapper.is-ready .story-excerpt:hover {
           opacity: 0.9;
@@ -1020,7 +1018,7 @@
 
       const thumbnailCache = new Map();
 
-      // ================= PLAYLIST DENGAN MULTIPLE CATEGORIES =================
+      // ================= PLAYLIST DATA =================
       const videoPlaylist = [
         {
           url: 'https://www.youtube.com/watch?v=lxSM-MYJsA8',
@@ -1035,7 +1033,7 @@
           categories: ['Tips & Trik', 'Football Skills'],
           title: 'Trik Ampuh Meningkatkan Skill Dribbling Sepak Bola ⚽',
           meta: 'Football Skills • 5 Jam yang lalu',
-          excerpt: 'Panduan latihan penguasaan bola jarak dekat, kecepatan, dan kelincahan berbelok.',
+          excerpt: 'Ini deskripsi singkat yang sengaja dibuat tidak terlalu panjang agar tidak terpotong oleh CSS.',
           content: '<p>Latihan ini berfokus pada penguasaan <i>close control</i>, kecepatan menggiring bola...</p>',
         },
         {
@@ -1071,6 +1069,24 @@
         updateEls('.story-excerpt__text', 'innerText', data.excerpt);
         updateEls('.story-view__meta', 'innerText', data.meta);
         updateEls('.story-body__cms-content', 'innerHTML', data.content);
+
+        requestAnimationFrame(() => {
+          document.querySelectorAll('.story-excerpt__text').forEach((el) => {
+            const text = el.innerText.trim();
+
+            const hasDetailContent = data.content && data.content.trim() !== '';
+
+            if (text === '' || !hasDetailContent) {
+              return;
+            }
+
+            if (el.scrollHeight <= el.clientHeight) {
+              if (!text.endsWith('...')) {
+                el.innerText = text + '...';
+              }
+            }
+          });
+        });
 
         const badgeContainers = document.querySelectorAll('.story-excerpt__badges, .story-view__badges');
         badgeContainers.forEach((container) => {
@@ -1497,7 +1513,7 @@
             window.addEventListener('mousemove', moveScrub);
             window.addEventListener('touchmove', moveScrub, { passive: false });
             window.addEventListener('mouseup', stopScrub);
-            window.addEventListener('touchend', stopScrub);
+            window.addEventListener('touchmove', stopScrub);
           };
           domRefs.storyProgressBarWrapper?.addEventListener('mousedown', startScrub);
           domRefs.storyProgressBarWrapper?.addEventListener('touchstart', startScrub, { passive: true });
