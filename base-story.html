@@ -37,7 +37,6 @@
         color: var(--text-main);
       }
 
-      /* Aksesibilitas (Focus Outline) */
       .story-excerpt:focus-visible,
       button:focus-visible {
         outline: 2px solid var(--brand-red);
@@ -96,7 +95,6 @@
         transform: translateZ(0);
       }
 
-      /* OPTIMASI AMBIENT LAYER (GPU ACCELERATION) */
       .ambient-layer {
         display: none;
         position: absolute;
@@ -238,20 +236,32 @@
       /* =========================================================
                UI ELEMENTS DALAM VIDEO
                ========================================================= */
-      .story-progress-bar {
+
+      /* Progress Bar Canggih dengan Wrapper Lebar untuk Kemudahan Klik */
+      .story-progress-bar-wrapper {
         position: absolute;
         top: max(16px, env(safe-area-inset-top));
         left: 16px;
         right: 16px;
-        height: 3px;
-        background: rgba(255, 255, 255, 0.25);
-        z-index: 15;
-        border-radius: 4px;
-        overflow: hidden;
+        height: 24px;
+        z-index: 25;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
         opacity: 0;
         transition: opacity 0.8s var(--ease-out);
       }
-
+      .story-progress-bar {
+        width: 100%;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.25);
+        border-radius: 4px;
+        overflow: hidden;
+        transition: height 0.2s var(--ease-out);
+      }
+      .story-progress-bar-wrapper:hover .story-progress-bar {
+        height: 6px;
+      }
       .story-progress-bar__fill {
         height: 100%;
         background: rgba(255, 255, 255, 0.95);
@@ -265,7 +275,7 @@
 
       .story-top-actions {
         position: absolute;
-        top: max(32px, env(safe-area-inset-top));
+        top: max(40px, env(safe-area-inset-top));
         left: 16px;
         z-index: 20;
         display: flex;
@@ -454,7 +464,7 @@
 
       .layout-wrapper.is-ready .story-excerpt,
       .layout-wrapper.is-ready .story-player-actions,
-      .layout-wrapper.is-ready .story-progress-bar,
+      .layout-wrapper.is-ready .story-progress-bar-wrapper,
       .layout-wrapper.is-ready .story-top-actions {
         opacity: 1;
         pointer-events: auto;
@@ -818,7 +828,6 @@
                RESPONSIVE BREAKPOINTS
                ========================================================= */
 
-      /* --- MOBILE (< 768px) --- */
       @media (max-width: 767px) {
         .story-container,
         .story-viewport {
@@ -833,7 +842,6 @@
         .story-header {
           padding: 0 28px;
         }
-
         .layout-wrapper.is-ui-open .story-viewport {
           filter: blur(12px) brightness(0.5);
           transform: scale(0.97);
@@ -848,7 +856,6 @@
         }
       }
 
-      /* --- TABLET (768px - 1365px) --- */
       @media (min-width: 768px) and (max-width: 1365px) {
         .story-sheet {
           display: none !important;
@@ -897,7 +904,6 @@
         }
       }
 
-      /* --- LARGE DESKTOP (>= 1366px) --- */
       @media (min-width: 1366px) {
         .story-popup,
         .story-sheet {
@@ -987,8 +993,11 @@
               <div class="story-loader">
                 <div class="story-loader__spinner"></div>
               </div>
-              <div class="story-progress-bar">
-                <div class="story-progress-bar__fill" id="storyProgressFill"></div>
+
+              <div class="story-progress-bar-wrapper" id="storyProgressBarWrapper" aria-label="Progress Video">
+                <div class="story-progress-bar">
+                  <div class="story-progress-bar__fill" id="storyProgressFill"></div>
+                </div>
               </div>
 
               <div class="story-top-actions">
@@ -1156,6 +1165,7 @@
           groupWrapper: document.getElementById('storyGroupWrapper'),
           mainContainer: document.getElementById('storyContainer'),
           storyViewport: document.querySelector('.story-viewport'),
+          progressBarWrapper: document.getElementById('storyProgressBarWrapper'),
           progressFill: document.getElementById('storyProgressFill'),
           mobileSheet: document.getElementById('storySheet'),
           mobileHandle: document.getElementById('storySheetHandle'),
@@ -1259,7 +1269,6 @@
           domRefs.layoutWrapper.classList.remove('is-clean-mode');
         };
 
-        // --- ANIMASI SLIDE TRANSITION ---
         const slideTransition = (direction, callback) => {
           const viewport = domRefs.storyViewport;
           if (!viewport) return callback();
@@ -1466,6 +1475,67 @@
           closeReactionMenu();
         };
 
+        // --- GESTURE PROGRESS BAR (KLIK & SCRUB) ---
+        const initProgressBarGestures = () => {
+          let isScrubbing = false;
+          let wasPlaying = false;
+
+          const updateSeek = (clientX) => {
+            if (!player || typeof player.getDuration !== 'function') return;
+            const rect = domRefs.progressBarWrapper.getBoundingClientRect();
+            const clickX = clientX - rect.left;
+            const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+
+            domRefs.progressFill.style.transform = `scaleX(${percentage})`;
+
+            const duration = player.getDuration();
+            const newTime = duration * percentage;
+            player.seekTo(newTime, true);
+            if (ambientPlayer && typeof ambientPlayer.seekTo === 'function') {
+              ambientPlayer.seekTo(newTime, true);
+            }
+          };
+
+          const startScrub = (e) => {
+            isScrubbing = true;
+            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+              wasPlaying = true;
+              player.pauseVideo();
+              if (ambientPlayer) ambientPlayer.pauseVideo();
+            } else {
+              wasPlaying = false;
+            }
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            updateSeek(clientX);
+          };
+
+          const moveScrub = (e) => {
+            if (!isScrubbing) return;
+            if (e.cancelable) e.preventDefault();
+            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            updateSeek(clientX);
+          };
+
+          const stopScrub = () => {
+            if (!isScrubbing) return;
+            isScrubbing = false;
+            if (wasPlaying && player) {
+              player.playVideo();
+              if (ambientPlayer) ambientPlayer.playVideo();
+            }
+          };
+
+          const wrapper = domRefs.progressBarWrapper;
+          wrapper.addEventListener('mousedown', startScrub);
+          wrapper.addEventListener('touchstart', startScrub, { passive: true });
+
+          window.addEventListener('mousemove', moveScrub);
+          window.addEventListener('touchmove', moveScrub, { passive: false });
+
+          window.addEventListener('mouseup', stopScrub);
+          window.addEventListener('touchend', stopScrub);
+        };
+
         const initGestures = () => {
           let touchStartX = 0,
             touchStartY = 0;
@@ -1617,6 +1687,7 @@
         };
 
         const initEventListeners = () => {
+          initProgressBarGestures();
           initGestures();
           initDrag();
 
