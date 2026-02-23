@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>Telkomsel Story - See More Feature</title>
+    <title>Telkomsel Story - Ultimate Harmony UX</title>
     <style>
       :root {
         --brand-red: #ee2d24;
@@ -52,9 +52,11 @@
         touch-action: pan-y;
         opacity: 0;
         transition: opacity 0.5s var(--ease-out);
+        pointer-events: none; /* Kunci awal semua interaksi */
       }
       .layout-wrapper.is-ready {
         opacity: 1;
+        pointer-events: auto; /* Buka kunci saat YouTube API siap */
       }
 
       .desktop-slider {
@@ -167,6 +169,7 @@
         opacity: 1;
         pointer-events: none;
         background: var(--brand-dark);
+        transition: opacity 0.4s ease;
       }
       #youtubePlayer {
         position: absolute;
@@ -176,7 +179,45 @@
         border: none;
         pointer-events: none;
         opacity: 0;
-        transition: opacity 0.8s var(--ease-out);
+        transition: opacity 0.4s var(--ease-out);
+      }
+
+      /* ================= LOADER (DIUPDATE UNTUK BUFFERING & SWIPE) ================= */
+      .story-loader {
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--brand-dark); /* Hitam pekat untuk load awal */
+        transition:
+          opacity 0.3s var(--ease-out),
+          background 0.3s var(--ease-out);
+        pointer-events: auto; /* Tameng yang memblokir sentuhan saat loader aktif */
+      }
+      .story-loader__spinner {
+        width: 42px;
+        height: 42px;
+        border: 3.5px solid rgba(255, 255, 255, 0.1);
+        border-top-color: var(--brand-red);
+        border-radius: 50%;
+        animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+      }
+      @keyframes spin {
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .layout-wrapper.is-ready .story-loader {
+        opacity: 0;
+        background: rgba(0, 0, 0, 0.4); /* Transparan untuk transisi ganti video */
+        pointer-events: none; /* Saat hidden, sentuhan tembus ke tombol */
+      }
+      .story-container.is-loading .story-loader {
+        opacity: 1;
+        pointer-events: auto; /* Saat loading swipe, kunci lagi interaksinya */
       }
 
       /* ================= LAYER EFEK & GESTURE ================= */
@@ -375,8 +416,6 @@
         text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
         line-height: 1.2;
       }
-
-      /* ================= EXCERPT TEXT & READ MORE ================= */
       .story-excerpt__text {
         font-size: 14px;
         line-height: 1.5;
@@ -387,7 +426,6 @@
         overflow: hidden;
         text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
       }
-      /* Class baru untuk "See more" dan "..." yang memudar */
       .story-read-more {
         opacity: 0.6;
         font-weight: 600;
@@ -483,40 +521,12 @@
         transition-delay: 0.15s;
       }
 
-      .layout-wrapper.is-ready
+      /* [BARU] DELAYED UI REVEAL - UI meluncur hanya saat class .show-ui diaktifkan (saat video main) */
+      .story-container.show-ui
         :is(.story-excerpt, .story-player-actions, .story-progress-bar-wrapper, .story-top-actions) {
         opacity: 1;
         pointer-events: auto;
         transform: translateY(0);
-      }
-
-      /* ================= LOADER & DESKTOP CONTROLS ================= */
-      .story-loader {
-        position: absolute;
-        inset: 0;
-        z-index: 50;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--brand-dark);
-        transition: opacity 0.4s var(--ease-out);
-        pointer-events: none;
-      }
-      .story-loader__spinner {
-        width: 42px;
-        height: 42px;
-        border: 3.5px solid rgba(255, 255, 255, 0.1);
-        border-top-color: var(--brand-red);
-        border-radius: 50%;
-        animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-      }
-      @keyframes spin {
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-      .layout-wrapper.is-ready .story-loader {
-        opacity: 0;
       }
 
       .desktop-controls-wrapper {
@@ -752,7 +762,7 @@
 
       /* ================= RESPONSIVE & HOVER ================= */
       @media (hover: hover) and (pointer: fine) {
-        .layout-wrapper.is-ready .story-excerpt:hover {
+        .story-container.show-ui .story-excerpt:hover {
           opacity: 0.9;
         }
         :is(.player-fab, .reaction-option-btn, .external-nav-btn:not(.is-disabled)):hover {
@@ -783,7 +793,9 @@
           transform: scale(0.97);
           border-radius: var(--frame-radius) !important;
         }
-        .layout-wrapper.is-ui-open :is(.story-close-player, .story-excerpt, .story-player-actions, .story-top-actions) {
+        .layout-wrapper.is-ui-open
+          .story-container.show-ui
+          :is(.story-close-player, .story-excerpt, .story-player-actions, .story-top-actions) {
           opacity: 0;
           pointer-events: none;
         }
@@ -833,7 +845,9 @@
             filter: blur(12px) brightness(0.6);
             transform: scale(0.97);
           }
-          .layout-wrapper.is-ui-open :is(.story-excerpt, .story-player-actions, .story-top-actions) {
+          .layout-wrapper.is-ui-open
+            .story-container.show-ui
+            :is(.story-excerpt, .story-player-actions, .story-top-actions) {
             opacity: 0;
             pointer-events: none;
           }
@@ -885,8 +899,8 @@
           right: auto;
         }
         .layout-wrapper.is-ui-open .desktop-controls-wrapper,
-        .layout-wrapper.is-ui-open .story-player-actions,
-        .layout-wrapper.is-ui-open .story-top-actions {
+        .layout-wrapper.is-ui-open .story-container.show-ui .story-player-actions,
+        .layout-wrapper.is-ui-open .story-container.show-ui .story-top-actions {
           opacity: 1;
           pointer-events: auto;
         }
@@ -1006,7 +1020,6 @@
       function parseYouTubeData(url) {
         let videoId = '';
         let isShort = false;
-
         if (url.includes('/shorts/')) {
           isShort = true;
           videoId = url.substring(url.indexOf('/shorts/') + 8).split('?')[0];
@@ -1023,7 +1036,6 @@
 
       let player, ambientPlayer;
       let currentVideoIndex = 0;
-
       const thumbnailCache = new Map();
 
       // ================= PLAYLIST DATA =================
@@ -1041,7 +1053,7 @@
           categories: ['Tips & Trik', 'Football Skills'],
           title: 'Trik Ampuh Meningkatkan Skill Dribbling Sepak Bola ⚽',
           meta: 'Football Skills • 5 Jam yang lalu',
-          excerpt: '',
+          excerpt: '', // Uji coba "See more"
           content: '<p>Latihan ini berfokus pada penguasaan <i>close control</i>, kecepatan menggiring bola...</p>',
         },
         {
@@ -1073,12 +1085,10 @@
         const progressFill = document.getElementById('storyProgressFill');
         if (progressFill) progressFill.style.transform = 'scaleX(0)';
 
-        // Update teks utama lainnya
         updateEls('.story-excerpt__title, .story-view__title', 'innerText', data.title);
         updateEls('.story-view__meta', 'innerText', data.meta);
         updateEls('.story-body__cms-content', 'innerHTML', data.content);
 
-        // --- Logika Cerdas untuk Excerpt, "See more", dan "..." yang memudar ---
         const excerptContainers = document.querySelectorAll('.story-excerpt__text');
         const hasDetailContent = data.content && data.content.trim() !== '';
 
@@ -1091,7 +1101,6 @@
             el.innerHTML = '';
           } else {
             el.innerHTML = rawExcerpt;
-
             if (hasDetailContent) {
               requestAnimationFrame(() => {
                 if (el.scrollHeight <= el.clientHeight) {
@@ -1104,7 +1113,6 @@
           }
         });
 
-        // --- Render Multiple Categories ---
         const badgeContainers = document.querySelectorAll('.story-excerpt__badges, .story-view__badges');
         badgeContainers.forEach((container) => {
           container.innerHTML = '';
@@ -1121,18 +1129,24 @@
         const ytPlayer = document.getElementById('youtubePlayer');
         const thumbOverlay = document.getElementById('thumbnailOverlay');
 
-        // Atur object-fit
         const objectFitStyle = isVideoShort ? 'cover' : 'contain';
-        if (ytPlayer) ytPlayer.style.objectFit = objectFitStyle;
+        if (ytPlayer) {
+          ytPlayer.style.objectFit = objectFitStyle;
+          ytPlayer.style.opacity = '0';
+        }
 
+        // Thumbnail Anti-Ghosting Logic
         if (thumbOverlay) {
           thumbOverlay.style.transition = 'none';
           thumbOverlay.style.objectFit = objectFitStyle;
+
+          thumbOverlay.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
           const maxResUrl = `https://i.ytimg.com/vi/${currentVideoId}/maxresdefault.jpg`;
           const hqResUrl = `https://i.ytimg.com/vi/${currentVideoId}/hqdefault.jpg`;
 
           thumbOverlay.onload = function () {
+            if (this.src.includes('data:image/gif')) return;
             if (this.naturalWidth <= 120 && this.src.includes('maxresdefault')) {
               this.src = hqResUrl;
             } else {
@@ -1331,16 +1345,22 @@
           if (domRefs['reaction-container']) domRefs['reaction-container'].innerHTML = '';
           domRefs.layoutWrapper?.classList.remove('is-clean-mode');
 
+          // [BARU] Sembunyikan UI Teks & Tombol Aksi secara instan
+          domRefs.storyContainer?.classList.remove('show-ui');
+
           [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
 
           const topBtn = document.getElementById('btnPlayPause');
           if (topBtn) topBtn.innerText = '⏸️';
 
           domRefs.storyContainer?.classList.remove('is-paused');
+          domRefs.storyContainer?.classList.add('is-loading'); // Kunci layar & tampilkan loader saat geser
 
           const progressFill = document.getElementById('storyProgressFill');
           if (progressFill) {
+            progressFill.style.transition = 'none';
             progressFill.style.transform = 'scaleX(0)';
+            requestAnimationFrame(() => (progressFill.style.transition = ''));
           }
 
           const thumbOverlay = document.getElementById('thumbnailOverlay');
@@ -1508,7 +1528,6 @@
           closeReactionMenu();
         };
 
-        // --- GESTURE LOGIC ---
         const getClientX = (e) => e.touches?.[0]?.clientX ?? e.clientX;
         const getClientY = (e) => e.touches?.[0]?.clientY ?? e.clientY;
 
@@ -1805,6 +1824,8 @@
                 }
               }, 1500);
               document.getElementById('youtubePlayer').style.opacity = '1';
+
+              // Buka kunci interaksi saat API sudah ready
               document.getElementById('layoutWrapper').classList.add('is-ready');
             },
             onError: (e) => {
@@ -1815,18 +1836,28 @@
               const btn = document.getElementById('btnPlayPause');
               const container = document.getElementById('storyContainer');
               const thumbOverlay = document.getElementById('thumbnailOverlay');
+              const ytPlayerElement = document.getElementById('youtubePlayer');
 
               if (e.data === YT.PlayerState.PLAYING) {
+                if (ytPlayerElement) ytPlayerElement.style.opacity = '1';
                 if (btn) btn.innerText = '⏸️';
+
                 container?.classList.remove('is-paused');
+                container?.classList.remove('is-loading');
+
+                // [BARU] Sinyal aman! Munculkan teks judul, deskripsi, dan tombol dengan mulus
+                container?.classList.add('show-ui');
+
                 if (thumbOverlay && thumbOverlay.style.display !== 'none') {
                   thumbOverlay.style.transition = 'opacity 0.6s ease';
                   thumbOverlay.style.opacity = '0';
                 }
+
                 ambientPlayer?.seekTo?.(player.getCurrentTime(), true);
                 ambientPlayer?.playVideo?.();
                 const ambientEl = document.getElementById('ambientPlayer');
                 if (ambientEl) ambientEl.style.opacity = '1';
+
                 StoryManager.startProgressBar();
               } else if (e.data === YT.PlayerState.PAUSED) {
                 if (!StoryManager.isAnimatingState()) {
@@ -1837,6 +1868,7 @@
                 StoryManager.stopProgressBar();
                 ambientPlayer?.pauseVideo?.();
               } else if (e.data === YT.PlayerState.BUFFERING) {
+                // Murni diserahkan pada YouTube, tidak memanggil .is-loading lagi di sini
                 ambientPlayer?.pauseVideo?.();
               } else if (e.data === YT.PlayerState.ENDED) {
                 StoryManager.stopProgressBar();
