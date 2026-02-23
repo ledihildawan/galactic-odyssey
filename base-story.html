@@ -131,7 +131,6 @@
         will-change: filter, transform;
       }
 
-      /* PERBAIKAN: Penambahan transisi efek untuk is-paused */
       .story-video-wrapper {
         position: relative;
         width: 100%;
@@ -1014,7 +1013,6 @@
       let player, ambientPlayer;
       let currentVideoIndex = 0;
 
-      // Status gambar ('loading', 'success', 'error')
       const thumbnailCache = new Map();
 
       const videoPlaylist = [
@@ -1070,7 +1068,6 @@
         updateEls('.story-view__meta', 'innerText', data.meta);
         updateEls('.story-body__cms-content', 'innerHTML', data.content);
 
-        // PERBAIKAN 1 & 5: Smart Thumbnail & Fallback
         const thumbOverlay = document.getElementById('thumbnailOverlay');
         if (thumbOverlay) {
           thumbOverlay.style.transition = 'none';
@@ -1078,21 +1075,19 @@
           const maxResUrl = `https://i.ytimg.com/vi/${data.id}/maxresdefault.jpg`;
           const hqResUrl = `https://i.ytimg.com/vi/${data.id}/hqdefault.jpg`;
 
-          // Handle load: cek apakah ini placeholder palsu
           thumbOverlay.onload = function () {
             if (this.naturalWidth <= 120 && this.src.includes('maxresdefault')) {
-              this.src = hqResUrl; // Fallback ke HD biasa
+              this.src = hqResUrl;
             } else {
               this.style.display = '';
             }
           };
 
-          // Handle error: jika maxres 404
           thumbOverlay.onerror = function () {
             if (this.src.includes('maxresdefault')) {
-              this.src = hqResUrl; // Fallback
+              this.src = hqResUrl;
             } else {
-              this.style.display = 'none'; // Kalau hqdefault juga gagal, sembunyikan total
+              this.style.display = 'none';
               thumbnailCache.set(data.id, 'error');
             }
           };
@@ -1101,7 +1096,6 @@
           thumbOverlay.style.opacity = '1';
         }
 
-        // SISTEM PRELOAD PINTAR (Di-update dengan logika fallback)
         const preloadThumbnail = (id) => {
           if (!thumbnailCache.has(id)) {
             thumbnailCache.set(id, 'loading');
@@ -1449,7 +1443,6 @@
         const getClientX = (e) => e.touches?.[0]?.clientX ?? e.clientX;
         const getClientY = (e) => e.touches?.[0]?.clientY ?? e.clientY;
 
-        // PERBAIKAN 4: Memory-safe Event Listeners untuk Progress Bar
         const initProgressBarGestures = () => {
           let isScrubbing = false,
             wasPlaying = false;
@@ -1473,7 +1466,6 @@
             isScrubbing = false;
             if (wasPlaying) [player, ambientPlayer].forEach((p) => p?.playVideo?.());
 
-            // Hapus listener saat user sudah melepas sentuhan/klik
             window.removeEventListener('mousemove', moveScrub);
             window.removeEventListener('touchmove', moveScrub);
             window.removeEventListener('mouseup', stopScrub);
@@ -1486,7 +1478,6 @@
             if (wasPlaying) [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
             updateSeek(getClientX(e));
 
-            // Tambahkan listener secara dinamis HANYA saat user mulai menekan
             window.addEventListener('mousemove', moveScrub);
             window.addEventListener('touchmove', moveScrub, { passive: false });
             window.addEventListener('mouseup', stopScrub);
@@ -1745,17 +1736,13 @@
               e.target.mute();
               e.target.playVideo();
 
-              // PERBAIKAN 3: Autoplay Resilience (Watchdog Timer)
               setTimeout(() => {
                 if (e.target.getPlayerState() !== YT.PlayerState.PLAYING) {
-                  // Jika masih belum play, munculkan tombol play
-                  StoryManager.showSteadyIcon('▶️');
-
-                  // ======== TAMBAHKAN BARIS INI ========
-                  // Sinkronkan juga tombol kecil di atas
                   const topBtn = document.getElementById('btnPlayPause');
                   if (topBtn) topBtn.innerText = '▶️';
-                  // =====================================
+
+                  const container = document.getElementById('storyContainer');
+                  container?.classList.add('is-paused');
                 }
               }, 1000);
 
@@ -1791,7 +1778,7 @@
                 StoryManager.startProgressBar();
               } else if (e.data === YT.PlayerState.PAUSED) {
                 if (btn) btn.innerText = '▶️';
-                container?.classList.add('is-paused'); // Pemicu efek visual filter dari CSS
+                container?.classList.add('is-paused');
                 StoryManager.stopProgressBar();
                 ambientPlayer?.pauseVideo?.();
               } else if (e.data === YT.PlayerState.BUFFERING) {
