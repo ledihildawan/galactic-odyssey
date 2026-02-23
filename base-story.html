@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>Telkomsel Story - Full Features</title>
+    <title>Telkomsel Story - See More Feature</title>
     <style>
       :root {
         --brand-red: #ee2d24;
@@ -375,6 +375,8 @@
         text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
         line-height: 1.2;
       }
+
+      /* ================= EXCERPT TEXT & READ MORE ================= */
       .story-excerpt__text {
         font-size: 14px;
         line-height: 1.5;
@@ -384,6 +386,12 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
         text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+      }
+      /* Class baru untuk "See more" dan "..." yang memudar */
+      .story-read-more {
+        opacity: 0.6;
+        font-weight: 600;
+        margin-left: 4px;
       }
 
       :is(.player-fab, .reaction-option-btn, .external-nav-btn) {
@@ -1033,7 +1041,7 @@
           categories: ['Tips & Trik', 'Football Skills'],
           title: 'Trik Ampuh Meningkatkan Skill Dribbling Sepak Bola ⚽',
           meta: 'Football Skills • 5 Jam yang lalu',
-          excerpt: 'Ini deskripsi singkat yang sengaja dibuat tidak terlalu panjang agar tidak terpotong oleh CSS.',
+          excerpt: '',
           content: '<p>Latihan ini berfokus pada penguasaan <i>close control</i>, kecepatan menggiring bola...</p>',
         },
         {
@@ -1065,29 +1073,38 @@
         const progressFill = document.getElementById('storyProgressFill');
         if (progressFill) progressFill.style.transform = 'scaleX(0)';
 
+        // Update teks utama lainnya
         updateEls('.story-excerpt__title, .story-view__title', 'innerText', data.title);
-        updateEls('.story-excerpt__text', 'innerText', data.excerpt);
         updateEls('.story-view__meta', 'innerText', data.meta);
         updateEls('.story-body__cms-content', 'innerHTML', data.content);
 
-        requestAnimationFrame(() => {
-          document.querySelectorAll('.story-excerpt__text').forEach((el) => {
-            const text = el.innerText.trim();
+        // --- Logika Cerdas untuk Excerpt, "See more", dan "..." yang memudar ---
+        const excerptContainers = document.querySelectorAll('.story-excerpt__text');
+        const hasDetailContent = data.content && data.content.trim() !== '';
 
-            const hasDetailContent = data.content && data.content.trim() !== '';
+        excerptContainers.forEach((el) => {
+          const rawExcerpt = data.excerpt ? data.excerpt.trim() : '';
 
-            if (text === '' || !hasDetailContent) {
-              return;
+          if (rawExcerpt === '' && hasDetailContent) {
+            el.innerHTML = '<span class="story-read-more">See more</span>';
+          } else if (rawExcerpt === '') {
+            el.innerHTML = '';
+          } else {
+            el.innerHTML = rawExcerpt;
+
+            if (hasDetailContent) {
+              requestAnimationFrame(() => {
+                if (el.scrollHeight <= el.clientHeight) {
+                  if (!el.innerHTML.includes('story-read-more')) {
+                    el.innerHTML = rawExcerpt + '<span class="story-read-more"> ...</span>';
+                  }
+                }
+              });
             }
-
-            if (el.scrollHeight <= el.clientHeight) {
-              if (!text.endsWith('...')) {
-                el.innerText = text + '...';
-              }
-            }
-          });
+          }
         });
 
+        // --- Render Multiple Categories ---
         const badgeContainers = document.querySelectorAll('.story-excerpt__badges, .story-view__badges');
         badgeContainers.forEach((container) => {
           container.innerHTML = '';
@@ -1104,6 +1121,7 @@
         const ytPlayer = document.getElementById('youtubePlayer');
         const thumbOverlay = document.getElementById('thumbnailOverlay');
 
+        // Atur object-fit
         const objectFitStyle = isVideoShort ? 'cover' : 'contain';
         if (ytPlayer) ytPlayer.style.objectFit = objectFitStyle;
 
@@ -1313,16 +1331,29 @@
           if (domRefs['reaction-container']) domRefs['reaction-container'].innerHTML = '';
           domRefs.layoutWrapper?.classList.remove('is-clean-mode');
 
+          [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
+
           const topBtn = document.getElementById('btnPlayPause');
           if (topBtn) topBtn.innerText = '⏸️';
 
-          const ambientEl = document.getElementById('ambientPlayer');
-          if (ambientEl) ambientEl.style.opacity = '0';
+          domRefs.storyContainer?.classList.remove('is-paused');
+
+          const progressFill = document.getElementById('storyProgressFill');
+          if (progressFill) {
+            progressFill.style.transform = 'scaleX(0)';
+          }
 
           const thumbOverlay = document.getElementById('thumbnailOverlay');
-          if (thumbOverlay) thumbOverlay.style.opacity = '1';
+          if (thumbOverlay) {
+            thumbOverlay.style.transition = 'none';
+            thumbOverlay.style.opacity = '1';
+          }
 
-          domRefs.storyContainer?.classList.remove('is-paused');
+          const ambientEl = document.getElementById('ambientPlayer');
+          if (ambientEl) {
+            ambientEl.style.transition = 'none';
+            ambientEl.style.opacity = '0';
+          }
         };
 
         const seekVideo = (offset) => {
@@ -1337,7 +1368,6 @@
         const slideTransition = (direction, callback) => {
           const viewport = domRefs.storyViewport;
           if (!viewport) return callback();
-          state.isAnimating = true;
 
           const dirMultiplier = direction === 'next' ? -1 : 1;
           viewport.style.transition = 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.35s ease';
@@ -1368,6 +1398,7 @@
           if (state.isAnimating) return;
           const newIndex = currentVideoIndex + step;
           if (newIndex >= 0 && newIndex < videoPlaylist.length) {
+            state.isAnimating = true;
             resetVideoState();
             slideTransition(step > 0 ? 'next' : 'prev', () => {
               currentVideoIndex = newIndex;
@@ -1721,7 +1752,15 @@
         };
 
         initEventListeners();
-        return { startProgressBar, stopProgressBar, checkNavState, showSteadyIcon, hideSteadyIcon };
+
+        return {
+          startProgressBar,
+          stopProgressBar,
+          checkNavState,
+          showSteadyIcon,
+          hideSteadyIcon,
+          isAnimatingState: () => state.isAnimating,
+        };
       })();
 
       // ================= INISIALISASI YOUTUBE API =================
@@ -1790,8 +1829,11 @@
                 if (ambientEl) ambientEl.style.opacity = '1';
                 StoryManager.startProgressBar();
               } else if (e.data === YT.PlayerState.PAUSED) {
-                if (btn) btn.innerText = '▶️';
-                container?.classList.add('is-paused');
+                if (!StoryManager.isAnimatingState()) {
+                  if (btn) btn.innerText = '▶️';
+                  container?.classList.add('is-paused');
+                }
+
                 StoryManager.stopProgressBar();
                 ambientPlayer?.pauseVideo?.();
               } else if (e.data === YT.PlayerState.BUFFERING) {
