@@ -23,6 +23,7 @@
         --fab-size: 44px;
         --frame-radius: 16px;
       }
+
       * {
         box-sizing: border-box;
         margin: 0;
@@ -31,20 +32,16 @@
       }
       body {
         background: #0f0f11;
-        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
         overflow: hidden;
         color: var(--text-main);
       }
-
-      .story-excerpt:focus-visible,
-      button:focus-visible {
+      :is(.story-excerpt, button):focus-visible {
         outline: 2px solid var(--brand-red);
         outline-offset: 2px;
       }
 
-      /* =========================================================
-         LAYOUT UTAMA
-         ========================================================= */
+      /* ================= LAYOUT UTAMA ================= */
       .layout-wrapper {
         position: relative;
         display: flex;
@@ -94,7 +91,7 @@
         transform: translateZ(0);
       }
 
-      /* Z-INDEX 1 - 10: BASE & AMBIENT LAYER */
+      /* ================= LAYER VIDEO & AMBIENT ================= */
       .ambient-layer {
         display: none;
         position: absolute;
@@ -109,9 +106,10 @@
         opacity: 0.4;
         pointer-events: none;
         transition: opacity 0.8s ease;
-        transform: translate3d(0, 0, 0) scale(1.05);
-        will-change: opacity;
-        backface-visibility: hidden;
+        transform: scale(1.05);
+      }
+      .story-container.is-focused .ambient-layer {
+        opacity: 0.25;
       }
       #ambientPlayer {
         width: 100%;
@@ -120,15 +118,11 @@
         opacity: 0;
         transition: opacity 1s var(--ease-out);
       }
-      .story-container.is-focused .ambient-layer {
-        opacity: 0.25;
-      }
 
       .story-viewport {
         position: absolute;
         inset: 0;
         z-index: 10;
-        background: transparent;
         overflow: hidden;
         border-radius: inherit;
         transition:
@@ -152,8 +146,8 @@
         background: linear-gradient(
           to bottom,
           rgba(0, 0, 0, 0.2) 0,
-          rgba(0, 0, 0, 0) 20%,
-          rgba(0, 0, 0, 0) 65%,
+          transparent 20%,
+          transparent 65%,
           rgba(0, 0, 0, 0.85) 100%
         );
         transition: opacity 0.4s var(--ease-out);
@@ -161,8 +155,7 @@
 
       #youtubePlayer {
         position: absolute;
-        top: 0;
-        left: 0;
+        inset: 0;
         width: 100%;
         height: 100%;
         border: none;
@@ -172,7 +165,7 @@
         transition: opacity 0.8s var(--ease-out);
       }
 
-      /* Z-INDEX 15: EFFECTS LAYER */
+      /* ================= LAYER EFEK & GESTURE ================= */
       #reaction-container {
         position: absolute;
         inset: 0;
@@ -189,12 +182,13 @@
         left: var(--x);
         font-size: var(--size);
         opacity: 0;
-        will-change: transform, opacity;
         animation: drop-physics var(--duration) ease-in forwards;
         animation-delay: var(--delay);
         filter: blur(var(--blur)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
         z-index: var(--z);
+        will-change: transform, opacity;
       }
+
       @keyframes drop-physics {
         0% {
           transform: translate3d(0, 0, 0) rotate(0deg);
@@ -225,9 +219,7 @@
         filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
         will-change: transform, opacity;
       }
-      /* Class baru untuk Hold Indicator (Steady) dan Tap Indicator (Flashing) */
-      .story-center-play.is-flashing,
-      .story-center-play.is-steady {
+      :is(.story-center-play.is-flashing, .story-center-play.is-steady) {
         opacity: 0.9;
         transform: translate(-50%, -50%) scale(1);
         transition:
@@ -235,7 +227,6 @@
           transform 0.2s var(--ease-spring);
       }
 
-      /* Z-INDEX 20: INVISIBLE GESTURE UI LAYER */
       .story-gesture-layer {
         position: absolute;
         inset: 0;
@@ -243,25 +234,21 @@
         display: flex;
         cursor: pointer;
         touch-action: none;
-        -webkit-touch-callout: none;
         user-select: none;
+        -webkit-touch-callout: none;
       }
       .gesture-zone {
         height: 100%;
       }
-      .gesture-zone--left {
+      .gesture-zone--left,
+      .gesture-zone--right {
         width: 30%;
       }
       .gesture-zone--center {
         width: 40%;
       }
-      .gesture-zone--right {
-        width: 30%;
-      }
 
-      /* =========================================================
-         Z-INDEX 30: PROGRESS BAR
-         ========================================================= */
+      /* ================= PROGRESS BAR & FLOATING UI ================= */
       .story-progress-bar-wrapper {
         position: absolute;
         bottom: max(16px, env(safe-area-inset-bottom));
@@ -288,32 +275,37 @@
       }
       .story-progress-bar__fill {
         height: 100%;
-        background: rgba(255, 255, 255, 0.95);
         width: 100%;
+        background: rgba(255, 255, 255, 0.95);
         transform-origin: left;
         transform: scaleX(0);
-        border-radius: 4px;
+        border-radius: inherit;
         box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
         will-change: transform;
       }
 
-      /* =========================================================
-         Z-INDEX 40: FLOATING UI (Tombol & Teks)
-         ========================================================= */
-      .story-top-actions {
+      :is(.story-top-actions, .story-player-actions) {
         position: absolute;
-        top: max(16px, env(safe-area-inset-top)); /* Dikembalikan ke atas (16px) */
-        left: 16px;
         z-index: 40;
         display: flex;
-        flex-direction: row;
         gap: 12px;
         opacity: 0;
         pointer-events: none;
-        transform: translateY(-20px);
         transition:
           opacity 0.8s var(--ease-out),
           transform 0.8s var(--ease-spring);
+      }
+      .story-top-actions {
+        top: max(16px, env(safe-area-inset-top));
+        left: 16px;
+        transform: translateY(-20px);
+      }
+      .story-player-actions {
+        bottom: max(48px, env(safe-area-inset-bottom));
+        right: 16px;
+        flex-direction: column;
+        align-items: center;
+        transform: translateY(20px);
       }
 
       .story-excerpt {
@@ -337,23 +329,6 @@
         font-family: inherit;
         display: block;
       }
-      .story-player-actions {
-        position: absolute;
-        bottom: max(48px, env(safe-area-inset-bottom));
-        right: 16px;
-        z-index: 40;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 12px;
-        opacity: 0;
-        pointer-events: none;
-        transform: translateY(20px);
-        transition:
-          opacity 0.8s var(--ease-out),
-          transform 0.8s var(--ease-spring);
-      }
-
       .story-excerpt__badge {
         background: rgba(255, 255, 255, 0.15);
         color: #fff;
@@ -386,7 +361,7 @@
         text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
       }
 
-      .player-fab {
+      :is(.player-fab, .reaction-option-btn, .external-nav-btn) {
         width: var(--fab-size);
         height: var(--fab-size);
         border-radius: 50%;
@@ -401,16 +376,17 @@
         justify-content: center;
         cursor: pointer;
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-        transition:
-          background 0.3s,
-          box-shadow 0.3s,
-          opacity 0.3s,
-          transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       }
-      .player-fab:active {
+      :is(.player-fab, .reaction-option-btn, .external-nav-btn):active:not(.is-disabled) {
         background: rgba(255, 255, 255, 0.1);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         transform: scale(0.9);
+      }
+      .external-nav-btn.is-disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+        pointer-events: none;
       }
 
       .reaction-wrapper {
@@ -433,27 +409,12 @@
       .reaction-wrapper.is-active .reaction-options {
         pointer-events: auto;
       }
+
       .reaction-option-btn {
-        width: var(--fab-size);
-        height: var(--fab-size);
-        border-radius: 50%;
-        background: var(--glass-bg);
-        backdrop-filter: blur(16px);
-        border: 1px solid var(--glass-border);
-        color: #fff;
         font-size: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
         opacity: 0;
         transform: translateY(20px) scale(0.6);
         transition: all 0.4s var(--ease-spring);
-      }
-      .reaction-option-btn:active {
-        background: rgba(255, 255, 255, 0.1);
-        transform: scale(0.85);
       }
       .reaction-wrapper.is-active .reaction-option-btn {
         opacity: 1;
@@ -464,6 +425,7 @@
         background: rgba(255, 255, 255, 0.9);
         color: var(--brand-dark);
       }
+
       .reaction-option-btn:nth-child(1) {
         transition-delay: 0s;
       }
@@ -489,16 +451,15 @@
         transition-delay: 0.15s;
       }
 
-      .layout-wrapper.is-ready .story-excerpt,
-      .layout-wrapper.is-ready .story-player-actions,
-      .layout-wrapper.is-ready .story-progress-bar-wrapper,
-      .layout-wrapper.is-ready .story-top-actions {
+      /* Tampilkan UI saat ready */
+      .layout-wrapper.is-ready
+        :is(.story-excerpt, .story-player-actions, .story-progress-bar-wrapper, .story-top-actions) {
         opacity: 1;
         pointer-events: auto;
         transform: translateY(0);
       }
 
-      /* Z-INDEX 50+: LOADERS & EXTERNAL UI */
+      /* ================= LOADER & DESKTOP CONTROLS ================= */
       .story-loader {
         position: absolute;
         inset: 0;
@@ -517,6 +478,11 @@
         border-top-color: var(--brand-red);
         border-radius: 50%;
         animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+      }
+      @keyframes spin {
+        100% {
+          transform: rotate(360deg);
+        }
       }
       .layout-wrapper.is-ready .story-loader {
         opacity: 0;
@@ -544,7 +510,7 @@
 
       .story-close-player {
         position: fixed;
-        top: max(16px, env(safe-area-inset-top)); /* Dikembalikan ke atas */
+        top: max(16px, env(safe-area-inset-top));
         right: 16px;
       }
       .external-nav-group {
@@ -552,41 +518,9 @@
         flex-direction: column;
         gap: 12px;
       }
-      .external-nav-btn {
-        width: var(--fab-size);
-        height: var(--fab-size);
-        border-radius: 50%;
-        background: var(--glass-bg);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid var(--glass-border);
-        color: #fff;
-        font-size: 20px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-        transition:
-          background 0.3s ease,
-          transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
-          opacity 0.3s ease;
-      }
-      .external-nav-btn:active:not(.is-disabled) {
-        background: rgba(255, 255, 255, 0.1);
-        transform: scale(0.9);
-      }
-      .external-nav-btn.is-disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
-        pointer-events: none;
-      }
 
-      /* LOGIKA CLEAN MODE */
-      .layout-wrapper.is-clean-mode .reaction-wrapper,
-      .layout-wrapper.is-clean-mode .share-fab,
-      .layout-wrapper.is-clean-mode .story-excerpt,
-      .layout-wrapper.is-clean-mode .story-top-actions {
+      /* ================= CLEAN MODE ================= */
+      .layout-wrapper.is-clean-mode :is(.reaction-wrapper, .share-fab, .story-excerpt, .story-top-actions) {
         opacity: 0 !important;
         pointer-events: none !important;
         visibility: hidden !important;
@@ -604,19 +538,11 @@
       .layout-wrapper.is-clean-mode #icon-exit-fs {
         display: block !important;
       }
-      @media (max-width: 767px) {
-        .layout-wrapper.is-clean-mode .story-close-player {
-          opacity: 0 !important;
-          pointer-events: none !important;
-          visibility: hidden !important;
-        }
-      }
 
-      /* Z-INDEX 100+: MODALS & CARDS */
+      /* ================= POPUP, SHEET & CARD ================= */
       .story-card {
         display: none;
         width: var(--card-width);
-        height: auto;
         max-height: calc(100dvh - 80px);
         background: var(--surface);
         border-radius: var(--frame-radius);
@@ -628,6 +554,7 @@
         box-shadow: 0 32px 72px rgba(0, 0, 0, 0.3);
         border: 1px solid rgba(255, 255, 255, 0.05);
       }
+
       .overlay-backdrop {
         position: absolute;
         inset: 0;
@@ -643,32 +570,41 @@
         opacity: 1;
       }
 
-      .story-sheet {
+      :is(.story-sheet, .story-popup) {
         position: fixed;
         inset: 0;
         z-index: 100;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
         visibility: hidden;
         pointer-events: none;
       }
-      .story-sheet.is-active {
+      .story-sheet {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+      .story-popup {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      :is(.story-sheet, .story-popup).is-active {
         visibility: visible;
       }
-      .story-sheet__content {
+
+      :is(.story-sheet__content, .story-popup__content) {
         position: relative;
         background: var(--surface);
+        z-index: 101;
+        pointer-events: auto;
+        display: flex;
+        flex-direction: column;
+      }
+      .story-sheet__content {
         border-radius: 28px 28px 0 0;
         width: 100%;
         padding: 12px 0 0;
-        z-index: 101;
         transform: translateY(100%);
-        pointer-events: auto;
         max-height: 88vh;
-        height: auto;
-        display: flex;
-        flex-direction: column;
         transition: transform 0.6s var(--ease-spring);
         box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2);
         will-change: transform;
@@ -679,6 +615,7 @@
       .story-sheet__content.is-dragging {
         transition: transform 0.1s ease-out;
       }
+
       .story-sheet__handle-wrapper {
         width: 100%;
         padding: 10px 0 24px;
@@ -695,36 +632,16 @@
         border-radius: 10px;
       }
 
-      .story-popup {
-        position: fixed;
-        inset: 0;
-        z-index: 100;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        visibility: hidden;
-        pointer-events: none;
-      }
-      .story-popup.is-active {
-        visibility: visible;
-      }
       .story-popup__content {
-        position: relative;
-        background: var(--surface);
         width: var(--card-width);
         padding: 24px 0;
-        z-index: 101;
         opacity: 0;
         transform: translateY(40px);
         max-height: calc(100dvh - 64px);
-        height: auto;
         border-radius: var(--frame-radius);
         transition:
           transform 0.6s var(--ease-spring),
           opacity 0.6s var(--ease-spring);
-        pointer-events: auto;
-        display: flex;
-        flex-direction: column;
         box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
       }
       .story-popup.is-active .story-popup__content {
@@ -752,8 +669,7 @@
         z-index: 30;
       }
 
-      .story-dynamic-area,
-      .story-view {
+      :is(.story-dynamic-area, .story-view) {
         display: flex;
         flex-direction: column;
         min-height: 0;
@@ -770,8 +686,6 @@
         color: var(--text-main);
         margin-bottom: 6px;
         line-height: 1.25;
-      }
-      .story-view__title:focus {
         outline: none;
       }
       .story-view__meta {
@@ -808,31 +722,24 @@
         margin-bottom: 16px;
       }
 
+      /* ================= HOVER EFFECTS ================= */
       @media (hover: hover) and (pointer: fine) {
         .layout-wrapper.is-ready .story-excerpt:hover {
           opacity: 0.9;
         }
-        .player-fab:hover {
+        :is(.player-fab, .reaction-option-btn, .external-nav-btn:not(.is-disabled)):hover {
           background: rgba(255, 255, 255, 0.25);
           box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-        }
-        .reaction-option-btn:hover {
-          background: rgba(255, 255, 255, 0.25);
         }
         .story-close-btn:hover {
           background: #e9ecef;
           color: var(--text-main);
         }
-        .external-nav-btn:hover:not(.is-disabled) {
-          background: rgba(255, 255, 255, 0.25);
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-        }
       }
 
-      /* RESPONSIVE BREAKPOINTS */
+      /* ================= RESPONSIVE ================= */
       @media (max-width: 767px) {
-        .story-container,
-        .story-viewport {
+        :is(.story-container, .story-viewport) {
           border-radius: 0 !important;
         }
         .story-popup {
@@ -849,25 +756,23 @@
           transform: scale(0.97);
           border-radius: var(--frame-radius) !important;
         }
-        .layout-wrapper.is-ui-open .story-close-player,
-        .layout-wrapper.is-ui-open .story-excerpt,
-        .layout-wrapper.is-ui-open .story-player-actions,
-        .layout-wrapper.is-ui-open .story-top-actions {
+        .layout-wrapper.is-ui-open :is(.story-close-player, .story-excerpt, .story-player-actions, .story-top-actions) {
           opacity: 0;
           pointer-events: none;
         }
+        .layout-wrapper.is-clean-mode .story-close-player {
+          opacity: 0 !important;
+          pointer-events: none !important;
+          visibility: hidden !important;
+        }
       }
 
-      @media (min-width: 768px) and (max-width: 1365px) {
+      @media (min-width: 768px) {
         .story-sheet {
           display: none !important;
         }
         .ambient-layer {
           display: block;
-        }
-        .story-group-wrapper {
-          height: calc(100dvh - 64px);
-          width: auto;
         }
         .story-container {
           width: auto;
@@ -876,62 +781,60 @@
           overflow: visible;
           box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
         }
-        .desktop-controls-wrapper {
-          right: 32px;
-        }
         .external-nav-group {
           display: flex;
-          margin-top: auto;
-          margin-bottom: auto;
+          margin: auto 0;
         }
-        .story-close-player {
-          position: relative;
-          top: max(24px, env(safe-area-inset-top));
-          right: auto;
-        }
-        .layout-wrapper.is-ui-open .desktop-controls-wrapper {
-          opacity: 0;
-          pointer-events: none;
-        }
-        .layout-wrapper.is-ui-open .story-viewport {
-          filter: blur(12px) brightness(0.6);
-          transform: scale(0.97);
-        }
-        .layout-wrapper.is-ui-open .story-excerpt,
-        .layout-wrapper.is-ui-open .story-player-actions,
-        .layout-wrapper.is-ui-open .story-top-actions {
-          opacity: 0;
-          pointer-events: none;
+
+        /* TABLET KHUSUS */
+        @media (max-width: 1365px) {
+          .story-group-wrapper {
+            height: calc(100dvh - 64px);
+            width: auto;
+          }
+          .desktop-controls-wrapper {
+            right: 32px;
+          }
+          .story-close-player {
+            position: relative;
+            top: max(24px, env(safe-area-inset-top));
+            right: auto;
+          }
+          .layout-wrapper.is-ui-open .desktop-controls-wrapper {
+            opacity: 0;
+            pointer-events: none;
+          }
+          .layout-wrapper.is-ui-open .story-viewport {
+            filter: blur(12px) brightness(0.6);
+            transform: scale(0.97);
+          }
+          .layout-wrapper.is-ui-open :is(.story-excerpt, .story-player-actions, .story-top-actions) {
+            opacity: 0;
+            pointer-events: none;
+          }
         }
       }
 
       @media (min-width: 1366px) {
-        .story-popup,
-        .story-sheet {
+        .story-popup {
           display: none !important;
         }
         .ambient-layer {
-          display: block;
           opacity: 0.6;
         }
         .story-group-wrapper {
           width: max-content;
           height: calc(100dvh - 80px);
           position: relative;
-          transition: transform 0.6s var(--ease-spring);
           margin: 0 auto;
         }
         .story-container {
-          width: auto;
-          height: 100%;
-          aspect-ratio: 9/16;
-          overflow: visible;
-          box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
           z-index: 10;
         }
         .layout-wrapper.is-ui-open .story-group-wrapper {
           transform: translateX(calc((var(--card-width) + 16px) / -2));
         }
+
         .story-card {
           display: flex;
           position: fixed;
@@ -949,31 +852,25 @@
           pointer-events: auto;
           right: 100px;
         }
+
         .desktop-controls-wrapper {
           right: 40px;
-        }
-        .external-nav-group {
-          display: flex;
-          margin-top: auto;
-          margin-bottom: auto;
         }
         .story-close-player {
           position: relative;
           top: max(32px, env(safe-area-inset-top));
           right: auto;
         }
-        .layout-wrapper.is-ui-open .desktop-controls-wrapper {
+
+        .layout-wrapper.is-ui-open .desktop-controls-wrapper,
+        .layout-wrapper.is-ui-open .story-player-actions,
+        .layout-wrapper.is-ui-open .story-top-actions {
           opacity: 1;
           pointer-events: auto;
         }
         .layout-wrapper.is-ui-open .story-excerpt {
           opacity: 0;
           pointer-events: none;
-        }
-        .layout-wrapper.is-ui-open .story-player-actions,
-        .layout-wrapper.is-ui-open .story-top-actions {
-          opacity: 1;
-          pointer-events: auto;
         }
       }
     </style>
@@ -983,17 +880,10 @@
       <div class="desktop-slider">
         <div class="story-group-wrapper" id="storyGroupWrapper">
           <div class="story-container" id="storyContainer">
-            <div class="ambient-layer">
-              <div id="ambientPlayer"></div>
-            </div>
+            <div class="ambient-layer"><div id="ambientPlayer"></div></div>
             <div class="story-viewport">
-              <div class="story-loader">
-                <div class="story-loader__spinner"></div>
-              </div>
-
-              <div class="story-video-wrapper">
-                <div id="youtubePlayer"></div>
-              </div>
+              <div class="story-loader"><div class="story-loader__spinner"></div></div>
+              <div class="story-video-wrapper"><div id="youtubePlayer"></div></div>
 
               <div id="reaction-container"></div>
               <div class="story-center-play" id="centerPlayIndicator" aria-hidden="true">▶️</div>
@@ -1062,9 +952,7 @@
       <div class="story-sheet" id="storySheet" aria-modal="true" role="dialog">
         <div class="story-sheet__backdrop overlay-backdrop"></div>
         <div class="story-sheet__content">
-          <div class="story-sheet__handle-wrapper" id="storySheetHandle">
-            <div class="story-sheet__handle"></div>
-          </div>
+          <div class="story-sheet__handle-wrapper" id="storySheetHandle"><div class="story-sheet__handle"></div></div>
           <div class="story-dynamic-area"></div>
         </div>
       </div>
@@ -1127,21 +1015,21 @@
         },
       ];
 
+      const updateEls = (sel, prop, val) => document.querySelectorAll(sel).forEach((el) => (el[prop] = val));
+
       const updateVideoUI = () => {
         const data = videoPlaylist[currentVideoIndex];
         const progressFill = document.getElementById('storyProgressFill');
         if (progressFill) progressFill.style.transform = 'scaleX(0)';
 
-        document.querySelector('.story-excerpt__badge').innerText = data.badge;
-        document.querySelector('.story-excerpt__title').innerText = data.title;
-        document.querySelector('.story-excerpt__text').innerText = data.excerpt;
+        updateEls('.story-excerpt__badge', 'innerText', data.badge);
+        updateEls('.story-excerpt__title, .story-view__title', 'innerText', data.title);
+        updateEls('.story-excerpt__text', 'innerText', data.excerpt);
+        updateEls('.story-view__meta', 'innerText', data.meta);
+        updateEls('.story-body__cms-content', 'innerHTML', data.content);
 
-        document.querySelectorAll('.story-view__title').forEach((el) => (el.innerText = data.title));
-        document.querySelectorAll('.story-view__meta').forEach((el) => (el.innerText = data.meta));
-        document.querySelectorAll('.story-body__cms-content').forEach((el) => (el.innerHTML = data.content));
-
-        if (player && typeof player.loadVideoById === 'function') player.loadVideoById(data.id);
-        if (ambientPlayer && typeof ambientPlayer.loadVideoById === 'function') ambientPlayer.loadVideoById(data.id);
+        player?.loadVideoById?.(data.id);
+        ambientPlayer?.loadVideoById?.(data.id);
 
         StoryManager.startProgressBar();
         StoryManager.checkNavState();
@@ -1157,58 +1045,56 @@
           isAnimating: false,
         };
 
+        const getDOM = (ids) => ids.reduce((acc, id) => ({ ...acc, [id]: document.getElementById(id) }), {});
         const domRefs = {
-          layoutWrapper: document.getElementById('layoutWrapper'),
+          ...getDOM([
+            'layoutWrapper',
+            'storyProgressBarWrapper',
+            'storyProgressFill',
+            'storySheet',
+            'storySheetHandle',
+            'storyPopup',
+            'storyCardDashboard',
+            'storyContentTemplate',
+            'reactionWrapper',
+            'btnPlayPause',
+            'btnMute',
+            'icon-enter-fs',
+            'icon-exit-fs',
+            'reaction-container',
+            'centerPlayIndicator',
+            'btnPrevStory',
+            'btnNextStory',
+            'storyGestureLayer',
+            'btnToggleReaction',
+            'btnOpenContext',
+          ]),
           storyViewport: document.querySelector('.story-viewport'),
-          progressBarWrapper: document.getElementById('storyProgressBarWrapper'),
-          progressFill: document.getElementById('storyProgressFill'),
-          mobileSheet: document.getElementById('storySheet'),
-          mobileHandle: document.getElementById('storySheetHandle'),
-          tabletPopup: document.getElementById('storyPopup'),
-          dashboardCard: document.getElementById('storyCardDashboard'),
-          contentTemplate: document.getElementById('storyContentTemplate'),
-          reactionWrapper: document.getElementById('reactionWrapper'),
-          btnPlayPause: document.getElementById('btnPlayPause'),
-          btnMute: document.getElementById('btnMute'),
-          iconEnter: document.getElementById('icon-enter-fs'),
-          iconExit: document.getElementById('icon-exit-fs'),
-          reactionContainer: document.getElementById('reaction-container'),
-          centerPlayIndicator: document.getElementById('centerPlayIndicator'),
-          btnPrevStory: document.getElementById('btnPrevStory'),
-          btnNextStory: document.getElementById('btnNextStory'),
-          storyGestureLayer: document.getElementById('storyGestureLayer'),
-          btnToggleReaction: document.getElementById('btnToggleReaction'),
-          btnOpenContext: document.getElementById('btnOpenContext'),
         };
 
         const getActiveContext = () => {
           const w = window.innerWidth;
-          if (w >= 1366) return domRefs.dashboardCard;
-          return w >= 768 ? domRefs.tabletPopup : domRefs.mobileSheet;
+          return w >= 1366 ? domRefs.storyCardDashboard : w >= 768 ? domRefs.storyPopup : domRefs.storySheet;
         };
 
-        const injectTemplate = (el) => {
-          const target = el.querySelector('.story-dynamic-area');
-          if (target && target.innerHTML.trim() === '') {
-            target.appendChild(domRefs.contentTemplate.content.cloneNode(true));
-          }
-        };
-        [domRefs.mobileSheet, domRefs.tabletPopup, domRefs.dashboardCard].forEach(injectTemplate);
+        [domRefs.storySheet, domRefs.storyPopup, domRefs.storyCardDashboard].forEach((el) => {
+          const target = el?.querySelector('.story-dynamic-area');
+          if (target && !target.innerHTML.trim())
+            target.appendChild(domRefs.storyContentTemplate.content.cloneNode(true));
+        });
 
         let lastSyncCheck = 0;
         const loopProgress = () => {
-          if (!state.isOpen && player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+          if (!state.isOpen && player?.getPlayerState?.() === YT.PlayerState.PLAYING) {
             const duration = player.getDuration();
             const currentTime = player.getCurrentTime();
-            if (duration > 0) {
-              const progress = currentTime / duration;
-              domRefs.progressFill.style.transform = `scaleX(${progress})`;
-            }
-            if (ambientPlayer && typeof ambientPlayer.getCurrentTime === 'function') {
+            if (duration > 0) domRefs.storyProgressFill.style.transform = `scaleX(${currentTime / duration})`;
+
+            if (ambientPlayer?.getCurrentTime) {
               const now = performance.now();
               if (now - lastSyncCheck > 1000) {
-                const ambientTime = ambientPlayer.getCurrentTime();
-                if (Math.abs(currentTime - ambientTime) > 0.4) ambientPlayer.seekTo(currentTime, true);
+                if (Math.abs(currentTime - ambientPlayer.getCurrentTime()) > 0.4)
+                  ambientPlayer.seekTo(currentTime, true);
                 lastSyncCheck = now;
               }
             }
@@ -1219,64 +1105,54 @@
         };
 
         const startProgressBar = () => {
-          if (state.animFrameId) cancelAnimationFrame(state.animFrameId);
-          domRefs.progressFill.style.transform = 'scaleX(0)';
+          cancelAnimationFrame(state.animFrameId);
+          domRefs.storyProgressFill.style.transform = 'scaleX(0)';
           state.animFrameId = requestAnimationFrame(loopProgress);
         };
-        const stopProgressBar = () => {
-          if (state.animFrameId) cancelAnimationFrame(state.animFrameId);
-        };
+
+        const stopProgressBar = () => cancelAnimationFrame(state.animFrameId);
 
         let flashTimeout;
+        const toggleIcon = (iconStr, type) => {
+          const iconEl = domRefs.centerPlayIndicator;
+          if (!iconEl) return;
+          clearTimeout(flashTimeout);
+          iconEl.innerText = iconStr;
+          iconEl.className = type;
+          if (type === 'is-flashing') flashTimeout = setTimeout(() => iconEl.classList.remove('is-flashing'), 500);
+        };
+
         const flashIcon = (iconStr) => {
-          const iconEl = domRefs.centerPlayIndicator;
-          if (!iconEl) return;
-          iconEl.innerText = iconStr;
-          iconEl.classList.remove('is-flashing', 'is-steady');
-          void iconEl.offsetWidth;
-          iconEl.classList.add('is-flashing');
-          clearTimeout(flashTimeout);
-          flashTimeout = setTimeout(() => {
-            iconEl.classList.remove('is-flashing');
-          }, 500);
+          toggleIcon('', '');
+          void domRefs.centerPlayIndicator?.offsetWidth;
+          toggleIcon(iconStr, 'is-flashing');
         };
-
-        const showSteadyIcon = (iconStr) => {
-          const iconEl = domRefs.centerPlayIndicator;
-          if (!iconEl) return;
-          clearTimeout(flashTimeout);
-          iconEl.innerText = iconStr;
-          iconEl.classList.remove('is-flashing');
-          iconEl.classList.add('is-steady');
-        };
-
-        const hideSteadyIcon = () => {
-          const iconEl = domRefs.centerPlayIndicator;
-          if (!iconEl) return;
-          iconEl.classList.remove('is-steady');
-        };
+        const showSteadyIcon = (iconStr) => toggleIcon(iconStr, 'is-steady');
+        const hideSteadyIcon = () => domRefs.centerPlayIndicator?.classList.remove('is-steady');
 
         const checkNavState = () => {
-          if (domRefs.btnPrevStory) domRefs.btnPrevStory.classList.toggle('is-disabled', currentVideoIndex === 0);
-          if (domRefs.btnNextStory)
-            domRefs.btnNextStory.classList.toggle('is-disabled', currentVideoIndex === videoPlaylist.length - 1);
+          domRefs.btnPrevStory?.classList.toggle('is-disabled', currentVideoIndex === 0);
+          domRefs.btnNextStory?.classList.toggle('is-disabled', currentVideoIndex === videoPlaylist.length - 1);
         };
 
         const resetVideoState = () => {
           if (state.isOpen) closeContext();
           closeReactionMenu();
-          domRefs.reactionContainer.innerHTML = '';
-          domRefs.layoutWrapper.classList.remove('is-clean-mode');
+          if (domRefs['reaction-container']) domRefs['reaction-container'].innerHTML = '';
+          domRefs.layoutWrapper?.classList.remove('is-clean-mode');
+
+          // --- TAMBAHAN: Matikan/Sembunyikan cahaya ambient saat transisi ---
+          const ambientEl = document.getElementById('ambientPlayer');
+          if (ambientEl) ambientEl.style.opacity = '0';
         };
 
         const seekVideo = (offset) => {
-          if (!player || typeof player.getCurrentTime !== 'function') return;
+          if (!player?.getDuration) return;
           const duration = player.getDuration();
-          if (duration === 0) return;
+          if (!duration) return;
           const newTime = Math.max(0, Math.min(player.getCurrentTime() + offset, duration));
-          player.seekTo(newTime, true);
-          if (ambientPlayer && typeof ambientPlayer.seekTo === 'function') ambientPlayer.seekTo(newTime, true);
-          domRefs.progressFill.style.transform = `scaleX(${newTime / duration})`;
+          [player, ambientPlayer].forEach((p) => p?.seekTo?.(newTime, true));
+          domRefs.storyProgressFill.style.transform = `scaleX(${newTime / duration})`;
         };
 
         const slideTransition = (direction, callback) => {
@@ -1284,187 +1160,129 @@
           if (!viewport) return callback();
           state.isAnimating = true;
 
-          const outTransform = direction === 'next' ? 'translateY(-100%) scale(0.95)' : 'translateY(100%) scale(0.95)';
-          const inTransform = direction === 'next' ? 'translateY(100%) scale(0.95)' : 'translateY(-100%) scale(0.95)';
-
+          const dirMultiplier = direction === 'next' ? -1 : 1;
           viewport.style.transition = 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.35s ease';
-          viewport.style.transform = outTransform;
+          viewport.style.transform = `translateY(${dirMultiplier * 100}%) scale(0.95)`;
           viewport.style.opacity = '0';
 
           setTimeout(() => {
             callback();
             viewport.style.transition = 'none';
-            viewport.style.transform = inTransform;
+            viewport.style.transform = `translateY(${dirMultiplier * -100}%) scale(0.95)`;
             void viewport.offsetHeight;
             viewport.style.transition = 'transform 0.45s cubic-bezier(0.34, 1.5, 0.64, 1), opacity 0.4s ease';
             viewport.style.transform = 'translateY(0) scale(1)';
             viewport.style.opacity = '1';
-
-            setTimeout(() => {
-              viewport.style.transition = '';
-              viewport.style.transform = '';
-              viewport.style.opacity = '';
-              state.isAnimating = false;
-            }, 450);
+            setTimeout(
+              () =>
+                Object.assign(
+                  viewport.style,
+                  { transition: '', transform: '', opacity: '' },
+                  (state.isAnimating = false),
+                ),
+              450,
+            );
           }, 350);
         };
 
-        const nextVideo = (e) => {
-          if (e) e.stopPropagation();
+        const switchVideo = (step) => {
           if (state.isAnimating) return;
-          if (currentVideoIndex < videoPlaylist.length - 1) {
-            resetVideoState();
-            slideTransition('next', () => {
-              currentVideoIndex++;
+          const newIndex = currentVideoIndex + step;
+          if (newIndex >= 0 && newIndex < videoPlaylist.length) {
+            resetVideoState(); // <-- Ambient di-hide di sini
+            slideTransition(step > 0 ? 'next' : 'prev', () => {
+              currentVideoIndex = newIndex;
               updateVideoUI();
             });
           }
         };
 
-        const prevVideo = (e) => {
-          if (e) e.stopPropagation();
-          if (state.isAnimating) return;
-          if (currentVideoIndex > 0) {
-            resetVideoState();
-            slideTransition('prev', () => {
-              currentVideoIndex--;
-              updateVideoUI();
-            });
-          }
-        };
-
-        const closeStory = (e) => {
-          if (e) e.stopPropagation();
-          if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
-          if (ambientPlayer && typeof ambientPlayer.pauseVideo === 'function') ambientPlayer.pauseVideo();
+        const closeStory = () => {
+          [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
           domRefs.layoutWrapper.style.opacity = '0';
-          setTimeout(() => {
-            domRefs.layoutWrapper.style.display = 'none';
-          }, 500);
+          setTimeout(() => (domRefs.layoutWrapper.style.display = 'none'), 500);
         };
 
         const togglePlayPause = () => {
-          if (!player || typeof player.getPlayerState !== 'function') return;
-          if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-            player.pauseVideo();
-            if (ambientPlayer && typeof ambientPlayer.pauseVideo === 'function') ambientPlayer.pauseVideo();
+          if (player?.getPlayerState?.() === YT.PlayerState.PLAYING) {
+            [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
             flashIcon('⏸️');
           } else {
-            player.playVideo();
-            if (ambientPlayer && typeof ambientPlayer.seekTo === 'function') {
-              ambientPlayer.seekTo(player.getCurrentTime(), true);
-              ambientPlayer.playVideo();
-            }
+            player?.playVideo?.();
+            ambientPlayer?.seekTo?.(player.getCurrentTime(), true);
+            ambientPlayer?.playVideo?.();
             flashIcon('▶️');
           }
         };
 
-        const toggleMute = (e) => {
-          if (e) e.stopPropagation();
-          if (!player || typeof player.isMuted !== 'function') return;
-          if (player.isMuted()) {
-            player.unMute();
-            domRefs.btnMute.innerText = '🔊';
-          } else {
-            player.mute();
-            domRefs.btnMute.innerText = '🔇';
-          }
+        const toggleMute = () => {
+          const isMuted = player?.isMuted?.();
+          isMuted ? player?.unMute?.() : player?.mute?.();
+          if (domRefs.btnMute) domRefs.btnMute.innerText = isMuted ? '🔊' : '🔇';
         };
 
-        const openContext = () => {
+        const toggleContext = (open) => {
           const ctx = getActiveContext();
           if (!ctx) return;
-          domRefs.layoutWrapper.classList.remove('is-clean-mode');
-          domRefs.iconEnter.style.display = 'block';
-          domRefs.iconExit.style.display = 'none';
-          state.isOpen = true;
-          domRefs.layoutWrapper.classList.add('is-ui-open');
-          ctx.classList.add('is-active');
+          state.isOpen = open;
 
-          if (window.innerWidth < 1366) {
-            if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
-            if (ambientPlayer && typeof ambientPlayer.pauseVideo === 'function') ambientPlayer.pauseVideo();
-          }
-          closeReactionMenu();
-          setTimeout(() => {
-            const titleEl = ctx.querySelector('.story-view__title');
-            if (titleEl) titleEl.focus();
-          }, 100);
-        };
+          domRefs.layoutWrapper?.classList.toggle('is-ui-open', open);
+          domRefs.layoutWrapper?.classList.remove('is-clean-mode');
+          ctx.classList.toggle('is-active', open);
 
-        const closeContext = () => {
-          if (!state.isOpen) return;
-          state.isOpen = false;
-          domRefs.layoutWrapper.classList.remove('is-ui-open');
-          domRefs.mobileSheet.classList.remove('is-active');
-          domRefs.tabletPopup.classList.remove('is-active');
-          domRefs.dashboardCard.classList.remove('is-active');
-          domRefs.mobileSheet.querySelector('.story-sheet__content').style.transform = '';
-
-          if (window.innerWidth < 1366) {
-            if (player && typeof player.playVideo === 'function') player.playVideo();
-            if (ambientPlayer && typeof ambientPlayer.playVideo === 'function') ambientPlayer.playVideo();
-          }
-          domRefs.btnOpenContext.focus();
-        };
-
-        const toggleReactionMenu = (e) => {
-          if (e) e.stopPropagation();
-          if (domRefs.reactionWrapper) {
-            const isActive = domRefs.reactionWrapper.classList.toggle('is-active');
-            if (domRefs.btnToggleReaction) domRefs.btnToggleReaction.setAttribute('aria-expanded', isActive);
+          if (open) {
+            domRefs['icon-enter-fs'].style.display = 'block';
+            domRefs['icon-exit-fs'].style.display = 'none';
+            if (window.innerWidth < 1366) [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
+            closeReactionMenu();
+            setTimeout(() => ctx.querySelector('.story-view__title')?.focus(), 100);
+          } else {
+            domRefs.storySheet?.classList.remove('is-active');
+            domRefs.storyPopup?.classList.remove('is-active');
+            domRefs.storyCardDashboard?.classList.remove('is-active');
+            domRefs.storySheet.querySelector('.story-sheet__content').style.transform = '';
+            if (window.innerWidth < 1366) [player, ambientPlayer].forEach((p) => p?.playVideo?.());
+            domRefs.btnOpenContext?.focus();
           }
         };
+        const openContext = () => toggleContext(true);
+        const closeContext = () => toggleContext(false);
 
+        const toggleReactionMenu = () => {
+          const isActive = domRefs.reactionWrapper?.classList.toggle('is-active');
+          domRefs.btnToggleReaction?.setAttribute('aria-expanded', isActive);
+        };
         const closeReactionMenu = () => {
-          if (domRefs.reactionWrapper) {
-            domRefs.reactionWrapper.classList.remove('is-active');
-            if (domRefs.btnToggleReaction) domRefs.btnToggleReaction.setAttribute('aria-expanded', 'false');
-          }
-        };
-
-        const toggleCleanMode = (e) => {
-          if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
-          closeReactionMenu();
-          domRefs.layoutWrapper.classList.toggle('is-clean-mode');
+          domRefs.reactionWrapper?.classList.remove('is-active');
+          domRefs.btnToggleReaction?.setAttribute('aria-expanded', 'false');
         };
 
         const nativeShare = async () => {
-          const data = {
-            title: videoPlaylist[currentVideoIndex].title,
-            url: `https://www.youtube.com/watch?v=${videoPlaylist[currentVideoIndex].id}`,
-          };
+          const url = `https://www.youtube.com/watch?v=${videoPlaylist[currentVideoIndex].id}`;
           try {
-            if (navigator.share) await navigator.share(data);
+            if (navigator.share) await navigator.share({ title: videoPlaylist[currentVideoIndex].title, url });
             else {
-              navigator.clipboard.writeText(data.url);
+              navigator.clipboard.writeText(url);
               alert('Tautan berhasil disalin!');
             }
           } catch (e) {}
         };
 
-        const triggerReaction = (char) => {
+        const react = (emoji) => {
           const fragment = document.createDocumentFragment();
           for (let i = 0; i < 35; i++) {
             const el = document.createElement('div');
-            el.className = 'particle';
-            el.innerText = char;
             const depth = Math.random();
+            el.className = 'particle';
+            el.innerText = emoji;
             el.style.cssText = `--x:${Math.random() * 100}%;--size:${depth * 1.2 + 1.2}rem;--blur:${depth < 0.2 ? '2px' : '0px'};--z:${depth > 0.5 ? 20 : 1};--duration:${3500 - depth * 1500}ms;--delay:${Math.random() * 600}ms;--rotation:${(Math.random() - 0.5) * 720}deg;--drift:${(Math.random() - 0.5) * 120}px;`;
             el.onanimationend = () => el.remove();
             fragment.appendChild(el);
           }
-          domRefs.reactionContainer.appendChild(fragment);
-          if (navigator.vibrate) navigator.vibrate(40);
-        };
+          domRefs['reaction-container']?.appendChild(fragment);
+          navigator.vibrate?.(40);
 
-        const react = (emoji, e) => {
-          if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
-          triggerReaction(emoji);
-          const mainBtn = domRefs.reactionWrapper.querySelector('.player-fab');
+          const mainBtn = domRefs.reactionWrapper?.querySelector('.player-fab');
           if (mainBtn) {
             mainBtn.innerText = emoji;
             setTimeout(() => (mainBtn.innerText = '🤍'), 1500);
@@ -1472,189 +1290,132 @@
           closeReactionMenu();
         };
 
-        // --- GESTURE PROGRESS BAR (KLIK & SCRUB) ---
+        // --- GESTURE LOGIC ---
+        const getClientX = (e) => e.touches?.[0]?.clientX ?? e.clientX;
+        const getClientY = (e) => e.touches?.[0]?.clientY ?? e.clientY;
+
         const initProgressBarGestures = () => {
-          let isScrubbing = false;
-          let wasPlaying = false;
-
+          let isScrubbing = false,
+            wasPlaying = false;
           const updateSeek = (clientX) => {
-            if (!player || typeof player.getDuration !== 'function') return;
-            const rect = domRefs.progressBarWrapper.getBoundingClientRect();
-            const clickX = clientX - rect.left;
-            const percentage = Math.max(0, Math.min(1, clickX / rect.width));
-
-            domRefs.progressFill.style.transform = `scaleX(${percentage})`;
-            const duration = player.getDuration();
-            const newTime = duration * percentage;
-            player.seekTo(newTime, true);
-            if (ambientPlayer && typeof ambientPlayer.seekTo === 'function') ambientPlayer.seekTo(newTime, true);
+            const rect = domRefs.storyProgressBarWrapper.getBoundingClientRect();
+            const percentage = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+            domRefs.storyProgressFill.style.transform = `scaleX(${percentage})`;
+            const newTime = (player?.getDuration?.() ?? 0) * percentage;
+            [player, ambientPlayer].forEach((p) => p?.seekTo?.(newTime, true));
           };
 
           const startScrub = (e) => {
-            e.stopPropagation();
             isScrubbing = true;
-            if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
-              wasPlaying = true;
-              player.pauseVideo();
-              if (ambientPlayer) ambientPlayer.pauseVideo();
-            } else {
-              wasPlaying = false;
-            }
-            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-            updateSeek(clientX);
+            wasPlaying = player?.getPlayerState?.() === YT.PlayerState.PLAYING;
+            if (wasPlaying) [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
+            updateSeek(getClientX(e));
           };
-
           const moveScrub = (e) => {
             if (!isScrubbing) return;
             if (e.cancelable) e.preventDefault();
-            const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-            updateSeek(clientX);
+            updateSeek(getClientX(e));
           };
-
           const stopScrub = () => {
             if (!isScrubbing) return;
             isScrubbing = false;
-            if (wasPlaying && player) {
-              player.playVideo();
-              if (ambientPlayer) ambientPlayer.playVideo();
-            }
+            if (wasPlaying) [player, ambientPlayer].forEach((p) => p?.playVideo?.());
           };
 
-          const wrapper = domRefs.progressBarWrapper;
-          wrapper.addEventListener('mousedown', startScrub);
-          wrapper.addEventListener('touchstart', startScrub, { passive: true });
+          const wrapper = domRefs.storyProgressBarWrapper;
+          wrapper?.addEventListener('mousedown', startScrub);
+          wrapper?.addEventListener('touchstart', startScrub, { passive: true });
           window.addEventListener('mousemove', moveScrub);
           window.addEventListener('touchmove', moveScrub, { passive: false });
           window.addEventListener('mouseup', stopScrub);
           window.addEventListener('touchend', stopScrub);
         };
 
-        // --- INVISIBLE GESTURE UI LAYER LOGIC ---
         const initGestures = () => {
           let startX = 0,
-            startY = 0;
-          let lastTapTime = 0;
-          let clickTimer = null,
-            longPressTimer = null;
+            startY = 0,
+            lastTapTime = 0,
+            clickTimer,
+            longPressTimer;
           let isLongPressActive = false,
-            isSwiping = false;
-          let holdAction = null; // Menyimpan aksi area mana yang sedang di-hold
-
+            isSwiping = false,
+            holdAction = null;
           const layer = domRefs.storyGestureLayer;
 
-          layer.addEventListener('contextmenu', (e) => e.preventDefault());
-
-          layer.addEventListener('pointerdown', (e) => {
-            if (state.isAnimating) return;
-            if (e.pointerType === 'mouse' && e.button !== 0) return;
-
+          layer?.addEventListener('contextmenu', (e) => e.preventDefault());
+          layer?.addEventListener('pointerdown', (e) => {
+            if (state.isAnimating || (e.pointerType === 'mouse' && e.button !== 0)) return;
             startX = e.clientX;
             startY = e.clientY;
-            isLongPressActive = false;
-            isSwiping = false;
+            isLongPressActive = isSwiping = false;
             holdAction = e.target.getAttribute('data-action');
 
             longPressTimer = setTimeout(() => {
               isLongPressActive = true;
-
-              // LOGIKA TAHAN LAYAR (LONG PRESS) DIBAGI 3 ZONA
               if (holdAction === 'playpause') {
-                // Center Hold = Clean Mode & Pause
-                domRefs.layoutWrapper.classList.add('is-clean-mode');
-                if (player && player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
-              } else if (holdAction === 'forward') {
-                // Right Hold = Fast Forward 2x Speed
-                if (player && typeof player.setPlaybackRate === 'function') {
-                  player.setPlaybackRate(2);
-                  if (ambientPlayer) ambientPlayer.setPlaybackRate(2);
-                  showSteadyIcon('⏩ 2x');
-                }
-              } else if (holdAction === 'rewind') {
-                // Left Hold = Slow Motion 0.5x Speed
-                if (player && typeof player.setPlaybackRate === 'function') {
-                  player.setPlaybackRate(0.5);
-                  if (ambientPlayer) ambientPlayer.setPlaybackRate(0.5);
-                  showSteadyIcon('⏪ 0.5x');
-                }
+                domRefs.layoutWrapper?.classList.add('is-clean-mode');
+                player?.pauseVideo?.();
+              } else {
+                const rate = holdAction === 'forward' ? 2 : 0.5;
+                [player, ambientPlayer].forEach((p) => p?.setPlaybackRate?.(rate));
+                showSteadyIcon(holdAction === 'forward' ? '⏩ 2x' : '⏪ 0.5x');
               }
             }, 400);
           });
 
-          layer.addEventListener('pointermove', (e) => {
+          layer?.addEventListener('pointermove', (e) => {
             if (state.isAnimating || !startX) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-
-            if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+            if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
               clearTimeout(longPressTimer);
               isSwiping = true;
             }
           });
 
-          const handlePointerUp = (e) => {
+          layer?.addEventListener('pointerup', (e) => {
             if (state.isAnimating || !startX) return;
             clearTimeout(longPressTimer);
-
             const dy = e.clientY - startY;
             startX = 0;
 
             if (isLongPressActive) {
-              // RESTORE STATE SETELAH JARI DIANGKAT
               if (holdAction === 'playpause') {
-                domRefs.layoutWrapper.classList.remove('is-clean-mode');
-                if (player && typeof player.playVideo === 'function') player.playVideo();
+                domRefs.layoutWrapper?.classList.remove('is-clean-mode');
+                player?.playVideo?.();
               } else {
-                if (player && typeof player.setPlaybackRate === 'function') {
-                  player.setPlaybackRate(1); // Normal speed
-                  if (ambientPlayer) ambientPlayer.setPlaybackRate(1);
-                }
+                [player, ambientPlayer].forEach((p) => p?.setPlaybackRate?.(1));
                 hideSteadyIcon();
               }
-              return; // Hentikan di sini agar tidak terbaca sebagai klik
-            }
-
-            if (isSwiping && Math.abs(dy) > 50) {
-              if (dy > 0) prevVideo();
-              else nextVideo();
               return;
             }
 
-            if (!isSwiping) {
-              const action = e.target.getAttribute('data-action');
+            if (isSwiping && Math.abs(dy) > 50) return switchVideo(dy > 0 ? -1 : 1);
 
-              // SINGLE TAP Kiri/Kanan untuk Skip Instan
-              if (action === 'rewind') {
+            if (!isSwiping) {
+              if (holdAction === 'rewind') {
                 seekVideo(-10);
                 flashIcon('⏪');
                 return;
               }
-              if (action === 'forward') {
+              if (holdAction === 'forward') {
                 seekVideo(10);
                 flashIcon('⏩');
                 return;
               }
-
-              // KHUSUS TENGAH: Double tap Like, Single tap Play/Pause
-              if (action === 'playpause') {
-                const currentTime = Date.now();
-                const tapLength = currentTime - lastTapTime;
-                lastTapTime = currentTime;
-
-                if (tapLength < 300 && tapLength > 0) {
+              if (holdAction === 'playpause') {
+                const tapLength = Date.now() - lastTapTime;
+                lastTapTime = Date.now();
+                if (tapLength > 0 && tapLength < 300) {
                   clearTimeout(clickTimer);
                   react('❤️');
                   flashIcon('❤️');
                 } else {
-                  clickTimer = setTimeout(() => {
-                    togglePlayPause();
-                  }, 250);
+                  clickTimer = setTimeout(togglePlayPause, 250);
                 }
               }
             }
-          };
+          });
 
-          layer.addEventListener('pointerup', handlePointerUp);
-          layer.addEventListener('pointercancel', () => {
+          layer?.addEventListener('pointercancel', () => {
             clearTimeout(longPressTimer);
             startX = 0;
           });
@@ -1662,34 +1423,32 @@
 
         const initDrag = () => {
           let rAFDrag = null;
-          const contentSheet = domRefs.mobileSheet.querySelector('.story-sheet__content');
+          const contentSheet = domRefs.storySheet?.querySelector('.story-sheet__content');
 
           const move = (e) => {
             if (!state.isDragging || window.innerWidth >= 768) return;
             if (e.cancelable) e.preventDefault();
-            if (rAFDrag) cancelAnimationFrame(rAFDrag);
+            cancelAnimationFrame(rAFDrag);
             rAFDrag = requestAnimationFrame(() => {
-              const y = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-              state.currentY = y - state.startY;
-              if (state.currentY < 0) state.currentY = state.currentY * 0.2;
-              contentSheet.style.transform = `translateY(${state.currentY > 0 ? state.currentY : state.currentY}px)`;
+              state.currentY = getClientY(e) - state.startY;
+              if (state.currentY < 0) state.currentY *= 0.2;
+              contentSheet.style.transform = `translateY(${state.currentY}px)`;
             });
           };
           const end = () => {
             if (!state.isDragging || window.innerWidth >= 768) return;
             state.isDragging = false;
             contentSheet.classList.remove('is-dragging');
-            window.removeEventListener('mousemove', move);
-            window.removeEventListener('touchmove', move);
-            window.removeEventListener('mouseup', end);
-            window.removeEventListener('touchend', end);
+            ['mousemove', 'touchmove', 'mouseup', 'touchend'].forEach((evt) =>
+              window.removeEventListener(evt, evt.includes('move') ? move : end),
+            );
             if (state.currentY > 120) closeContext();
             else contentSheet.style.transform = '';
             state.currentY = 0;
           };
           const start = (e) => {
             if (window.innerWidth >= 768) return;
-            state.startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            state.startY = getClientY(e);
             state.isDragging = true;
             contentSheet.classList.add('is-dragging');
             window.addEventListener('mousemove', move);
@@ -1698,10 +1457,8 @@
             window.addEventListener('touchend', end);
           };
 
-          if (domRefs.mobileHandle) {
-            domRefs.mobileHandle.addEventListener('mousedown', start);
-            domRefs.mobileHandle.addEventListener('touchstart', start, { passive: true });
-          }
+          domRefs.storySheetHandle?.addEventListener('mousedown', start);
+          domRefs.storySheetHandle?.addEventListener('touchstart', start, { passive: true });
         };
 
         const initEventListeners = () => {
@@ -1710,67 +1467,65 @@
           initDrag();
 
           document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || state.isOpen || state.isAnimating)
-              return;
-            if (e.code === 'Space') {
-              e.preventDefault();
-              togglePlayPause();
-            } else if (e.code === 'ArrowDown') nextVideo();
-            else if (e.code === 'ArrowUp') prevVideo();
-            else if (e.code === 'ArrowRight') {
-              seekVideo(10);
-              flashIcon('⏩');
-            } else if (e.code === 'ArrowLeft') {
-              seekVideo(-10);
-              flashIcon('⏪');
-            }
+            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || state.isOpen || state.isAnimating) return;
+            const keyMap = {
+              Space: () => {
+                e.preventDefault();
+                togglePlayPause();
+              },
+              ArrowDown: () => switchVideo(1),
+              ArrowUp: () => switchVideo(-1),
+              ArrowRight: () => {
+                seekVideo(10);
+                flashIcon('⏩');
+              },
+              ArrowLeft: () => {
+                seekVideo(-10);
+                flashIcon('⏪');
+              },
+            };
+            keyMap[e.code]?.();
           });
 
           document.addEventListener('click', (e) => {
-            const target = e.target;
-            if (target.closest('.story-close-btn') || target.closest('.overlay-backdrop')) return closeContext();
+            const t = e.target;
+            if (t.closest('.story-close-btn, .overlay-backdrop')) return closeContext();
+            if (t.closest('.reaction-option-btn')) return react(t.closest('.reaction-option-btn').dataset.reaction);
 
-            const reactionBtn = target.closest('.reaction-option-btn');
-            if (reactionBtn) {
-              const emoji = reactionBtn.getAttribute('data-reaction');
-              return react(emoji, e);
-            }
+            const actionMap = {
+              '#btnPlayPause': togglePlayPause,
+              '#btnMute': toggleMute,
+              '#btnPrevStory': () => switchVideo(-1),
+              '#btnNextStory': () => switchVideo(1),
+              '#btnStoryClosePlayer': closeStory,
+              '#btnOpenContext': openContext,
+              '#btnToggleReaction': toggleReactionMenu,
+              '#btnShare': nativeShare,
+              '#btnCleanMode': () => {
+                closeReactionMenu();
+                domRefs.layoutWrapper?.classList.toggle('is-clean-mode');
+              },
+            };
+            for (let selector in actionMap) if (t.closest(selector)) return actionMap[selector](e);
 
-            if (target.closest('#btnPlayPause')) {
-              togglePlayPause();
-              return;
-            }
-            if (target.closest('#btnMute')) return toggleMute(e);
-            if (target.closest('#btnPrevStory')) return prevVideo(e);
-            if (target.closest('#btnNextStory')) return nextVideo(e);
-            if (target.closest('#btnStoryClosePlayer')) return closeStory(e);
-            if (target.closest('#btnOpenContext')) return openContext();
-            if (target.closest('#btnToggleReaction')) return toggleReactionMenu(e);
-            if (target.closest('#btnShare')) return nativeShare();
-            if (target.closest('#btnCleanMode')) return toggleCleanMode(e);
-
-            if (domRefs.reactionWrapper && !domRefs.reactionWrapper.contains(target)) closeReactionMenu();
+            if (domRefs.reactionWrapper && !domRefs.reactionWrapper.contains(t)) closeReactionMenu();
           });
         };
 
         initEventListeners();
-
         return { startProgressBar, stopProgressBar, checkNavState };
       })();
 
       function loadYouTubeAPI() {
-        var tag = document.createElement('script');
+        const tag = document.createElement('script');
         tag.src = 'https://www.youtube.com/iframe_api';
-        var firstScriptTag = document.getElementsByTagName('script')[0];
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        document.head.appendChild(tag);
       }
 
       function onYouTubeIframeAPIReady() {
         updateVideoUI();
-        const initialVideoId = videoPlaylist[currentVideoIndex].id;
-
         const ytOptions = {
-          videoId: initialVideoId,
+          videoId: videoPlaylist[currentVideoIndex].id,
           playerVars: {
             autoplay: 1,
             controls: 0,
@@ -1793,7 +1548,7 @@
               document.getElementById('layoutWrapper').classList.add('is-ready');
             },
             onError: (e) => {
-              console.error('YouTube Player Error:', e.data);
+              console.error('YouTube Error:', e.data);
               document.getElementById('layoutWrapper').classList.add('is-ready');
             },
             onStateChange: (e) => {
@@ -1802,19 +1557,24 @@
 
               if (e.data === YT.PlayerState.PLAYING) {
                 if (btn) btn.innerText = '⏸️';
-                container.classList.remove('is-paused');
-                if (ambientPlayer && typeof ambientPlayer.playVideo === 'function') {
-                  ambientPlayer.seekTo(player.getCurrentTime(), true);
-                  ambientPlayer.playVideo();
-                }
+                container?.classList.remove('is-paused');
+
+                // Sinkronkan playback ambient
+                ambientPlayer?.seekTo?.(player.getCurrentTime(), true);
+                ambientPlayer?.playVideo?.();
+
+                // --- TAMBAHAN: Tampilkan cahaya ambient kembali dengan transisi lembut ---
+                const ambientEl = document.getElementById('ambientPlayer');
+                if (ambientEl) ambientEl.style.opacity = '1';
+
                 StoryManager.startProgressBar();
               } else if (e.data === YT.PlayerState.PAUSED) {
                 if (btn) btn.innerText = '▶️';
-                container.classList.add('is-paused');
+                container?.classList.add('is-paused');
                 StoryManager.stopProgressBar();
-                if (ambientPlayer && typeof ambientPlayer.pauseVideo === 'function') ambientPlayer.pauseVideo();
+                ambientPlayer?.pauseVideo?.();
               } else if (e.data === YT.PlayerState.BUFFERING) {
-                if (ambientPlayer && typeof ambientPlayer.pauseVideo === 'function') ambientPlayer.pauseVideo();
+                ambientPlayer?.pauseVideo?.();
               } else if (e.data === YT.PlayerState.ENDED) {
                 StoryManager.stopProgressBar();
                 e.target.seekTo(0);
