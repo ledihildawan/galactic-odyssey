@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>Telkomsel Story - Ultimate Harmony UX</title>
+    <title>Telkomsel Story - Performance & A11y Update</title>
     <style>
       :root {
         --brand-red: #ee2d24;
@@ -41,6 +41,19 @@
         outline-offset: 2px;
       }
 
+      /* [A11Y] Screen Reader Only - Sembunyikan secara visual tapi terbaca oleh sistem */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+
       /* ================= LAYOUT UTAMA ================= */
       .layout-wrapper {
         position: relative;
@@ -50,13 +63,10 @@
         height: 100dvh;
         width: 100vw;
         touch-action: pan-y;
-        opacity: 0;
-        transition: opacity 0.5s var(--ease-out);
-        pointer-events: none; /* Kunci awal semua interaksi */
+        pointer-events: none;
       }
       .layout-wrapper.is-ready {
-        opacity: 1;
-        pointer-events: auto; /* Buka kunci saat YouTube API siap */
+        pointer-events: auto;
       }
 
       .desktop-slider {
@@ -160,6 +170,23 @@
         transition: opacity 0.4s var(--ease-out);
       }
 
+      /* [EDGE CASE] Blur Background untuk Video 16:9 */
+      .video-blur-bg {
+        position: absolute;
+        inset: -10%;
+        width: 120%;
+        height: 120%;
+        background-size: cover;
+        background-position: center;
+        filter: blur(25px) brightness(0.4);
+        z-index: 1;
+        opacity: 0;
+        transition:
+          opacity 0.5s ease,
+          background-image 0.5s ease;
+        pointer-events: none;
+      }
+
       .thumbnail-overlay {
         position: absolute;
         inset: 0;
@@ -168,8 +195,12 @@
         z-index: 8;
         opacity: 1;
         pointer-events: none;
-        background: var(--brand-dark);
+        background: transparent;
         transition: opacity 0.4s ease;
+        border: none;
+        outline: none;
+        display: block;
+        color: transparent;
       }
       #youtubePlayer {
         position: absolute;
@@ -180,9 +211,10 @@
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.4s var(--ease-out);
+        z-index: 2; /* Di atas blur bg */
       }
 
-      /* ================= LOADER (DIUPDATE UNTUK BUFFERING & SWIPE) ================= */
+      /* ================= LOADER ================= */
       .story-loader {
         position: absolute;
         inset: 0;
@@ -190,11 +222,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--brand-dark); /* Hitam pekat untuk load awal */
-        transition:
-          opacity 0.3s var(--ease-out),
-          background 0.3s var(--ease-out);
-        pointer-events: auto; /* Tameng yang memblokir sentuhan saat loader aktif */
+        background: rgba(0, 0, 0, 0.5);
+        opacity: 1;
+        pointer-events: auto;
+        transition: opacity 0.3s var(--ease-out);
       }
       .story-loader__spinner {
         width: 42px;
@@ -209,15 +240,13 @@
           transform: rotate(360deg);
         }
       }
-
-      .layout-wrapper.is-ready .story-loader {
+      .story-container.has-started .story-loader {
         opacity: 0;
-        background: rgba(0, 0, 0, 0.4); /* Transparan untuk transisi ganti video */
-        pointer-events: none; /* Saat hidden, sentuhan tembus ke tombol */
+        pointer-events: none;
       }
-      .story-container.is-loading .story-loader {
+      .story-container.has-started.is-loading .story-loader {
         opacity: 1;
-        pointer-events: auto; /* Saat loading swipe, kunci lagi interaksinya */
+        pointer-events: auto;
       }
 
       /* ================= LAYER EFEK & GESTURE ================= */
@@ -384,7 +413,6 @@
         display: block;
       }
 
-      /* ================= BADGE / KATEGORI ================= */
       :is(.story-excerpt__badges, .story-view__badges) {
         display: flex;
         flex-wrap: wrap;
@@ -521,7 +549,6 @@
         transition-delay: 0.15s;
       }
 
-      /* [BARU] DELAYED UI REVEAL - UI meluncur hanya saat class .show-ui diaktifkan (saat video main) */
       .story-container.show-ui
         :is(.story-excerpt, .story-player-actions, .story-progress-bar-wrapper, .story-top-actions) {
         opacity: 1;
@@ -529,6 +556,7 @@
         transform: translateY(0);
       }
 
+      /* ================= DESKTOP CONTROLS & NAVIGATION ================= */
       .desktop-controls-wrapper {
         position: fixed;
         right: 16px;
@@ -538,12 +566,9 @@
         flex-direction: column;
         align-items: center;
         pointer-events: none;
-        z-index: 50;
-        opacity: 0;
-        transition: opacity 0.8s var(--ease-out);
-      }
-      .layout-wrapper.is-ready .desktop-controls-wrapper {
+        z-index: 60;
         opacity: 1;
+        transition: opacity 0.8s var(--ease-out);
       }
       .desktop-controls-wrapper > * {
         pointer-events: auto;
@@ -760,7 +785,7 @@
         margin-bottom: 16px;
       }
 
-      /* ================= RESPONSIVE & HOVER ================= */
+      /* ================= RESPONSIVE ================= */
       @media (hover: hover) and (pointer: fine) {
         .story-container.show-ui .story-excerpt:hover {
           opacity: 0.9;
@@ -793,9 +818,11 @@
           transform: scale(0.97);
           border-radius: var(--frame-radius) !important;
         }
-        .layout-wrapper.is-ui-open
-          .story-container.show-ui
-          :is(.story-close-player, .story-excerpt, .story-player-actions, .story-top-actions) {
+        .layout-wrapper.is-ui-open .story-viewport :is(.story-excerpt, .story-player-actions, .story-top-actions) {
+          opacity: 0;
+          pointer-events: none;
+        }
+        .layout-wrapper.is-ui-open .story-close-player {
           opacity: 0;
           pointer-events: none;
         }
@@ -845,9 +872,7 @@
             filter: blur(12px) brightness(0.6);
             transform: scale(0.97);
           }
-          .layout-wrapper.is-ui-open
-            .story-container.show-ui
-            :is(.story-excerpt, .story-player-actions, .story-top-actions) {
+          .layout-wrapper.is-ui-open .story-viewport :is(.story-excerpt, .story-player-actions, .story-top-actions) {
             opacity: 0;
             pointer-events: none;
           }
@@ -908,16 +933,29 @@
     </style>
   </head>
   <body>
+    <div id="a11yAnnouncer" class="sr-only" aria-live="polite"></div>
+
     <div class="layout-wrapper" id="layoutWrapper" tabindex="-1">
       <div class="desktop-slider">
         <div class="story-group-wrapper" id="storyGroupWrapper">
           <div class="story-container" id="storyContainer">
-            <div class="ambient-layer"><div id="ambientPlayer"></div></div>
+            <div class="ambient-layer" id="ambientContainer">
+              <div id="ambientPlayer"></div>
+            </div>
+
             <div class="story-viewport">
               <div class="story-loader"><div class="story-loader__spinner"></div></div>
 
               <div class="story-video-wrapper">
-                <img id="thumbnailOverlay" class="thumbnail-overlay" alt="" aria-hidden="true" />
+                <div id="videoBlurBg" class="video-blur-bg"></div>
+
+                <img
+                  id="thumbnailOverlay"
+                  class="thumbnail-overlay"
+                  alt=""
+                  aria-hidden="true"
+                  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"
+                />
                 <div id="youtubePlayer"></div>
               </div>
 
@@ -938,7 +976,7 @@
 
               <div class="story-top-actions">
                 <button class="player-fab" id="btnPlayPause" aria-label="Pause Video">⏸️</button>
-                <button class="player-fab" id="btnMute" aria-label="Mute Audio">🔇</button>
+                <button class="player-fab" id="btnMute" aria-label="Unmute Audio">🔇</button>
               </div>
 
               <button class="story-excerpt" id="btnOpenContext" aria-label="Buka Detail Video">
@@ -1053,7 +1091,7 @@
           categories: ['Tips & Trik', 'Football Skills'],
           title: 'Trik Ampuh Meningkatkan Skill Dribbling Sepak Bola ⚽',
           meta: 'Football Skills • 5 Jam yang lalu',
-          excerpt: '', // Uji coba "See more"
+          excerpt: '',
           content: '<p>Latihan ini berfokus pada penguasaan <i>close control</i>, kecepatan menggiring bola...</p>',
         },
         {
@@ -1089,6 +1127,11 @@
         updateEls('.story-view__meta', 'innerText', data.meta);
         updateEls('.story-body__cms-content', 'innerHTML', data.content);
 
+        // [A11Y] Perbarui Teks ARIA Live untuk Screen Reader
+        const a11yAnnouncer = document.getElementById('a11yAnnouncer');
+        if (a11yAnnouncer) a11yAnnouncer.textContent = 'Memutar video: ' + data.title;
+
+        // --- Logika Cerdas Excerpt & See More ---
         const excerptContainers = document.querySelectorAll('.story-excerpt__text');
         const hasDetailContent = data.content && data.content.trim() !== '';
 
@@ -1096,7 +1139,7 @@
           const rawExcerpt = data.excerpt ? data.excerpt.trim() : '';
 
           if (rawExcerpt === '' && hasDetailContent) {
-            el.innerHTML = '<span class="story-read-more">See more</span>';
+            el.innerHTML = '<span class="story-read-more" style="margin-left: 0;">See more</span>';
           } else if (rawExcerpt === '') {
             el.innerHTML = '';
           } else {
@@ -1113,6 +1156,7 @@
           }
         });
 
+        // --- Render Multiple Categories ---
         const badgeContainers = document.querySelectorAll('.story-excerpt__badges, .story-view__badges');
         badgeContainers.forEach((container) => {
           container.innerHTML = '';
@@ -1128,6 +1172,7 @@
 
         const ytPlayer = document.getElementById('youtubePlayer');
         const thumbOverlay = document.getElementById('thumbnailOverlay');
+        const blurBg = document.getElementById('videoBlurBg');
 
         const objectFitStyle = isVideoShort ? 'cover' : 'contain';
         if (ytPlayer) {
@@ -1135,15 +1180,19 @@
           ytPlayer.style.opacity = '0';
         }
 
-        // Thumbnail Anti-Ghosting Logic
+        const maxResUrl = `https://i.ytimg.com/vi/${currentVideoId}/maxresdefault.jpg`;
+        const hqResUrl = `https://i.ytimg.com/vi/${currentVideoId}/hqdefault.jpg`;
+
+        // [EDGE CASE] Update Background Blur untuk video Non-Shorts (16:9)
+        if (blurBg) {
+          blurBg.style.backgroundImage = `url(${hqResUrl})`;
+          blurBg.style.opacity = isVideoShort ? '0' : '1';
+        }
+
         if (thumbOverlay) {
           thumbOverlay.style.transition = 'none';
           thumbOverlay.style.objectFit = objectFitStyle;
-
-          thumbOverlay.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-
-          const maxResUrl = `https://i.ytimg.com/vi/${currentVideoId}/maxresdefault.jpg`;
-          const hqResUrl = `https://i.ytimg.com/vi/${currentVideoId}/hqdefault.jpg`;
+          thumbOverlay.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";
 
           thumbOverlay.onload = function () {
             if (this.src.includes('data:image/gif')) return;
@@ -1198,6 +1247,7 @@
         const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?v=${currentVideoId}`;
         if (window.location.search !== `?v=${currentVideoId}`) window.history.pushState({ path: newUrl }, '', newUrl);
 
+        // [PERFORMANCE] Teknik Iframe Recycling. Sangat hemat memory, tidak perlu merombak iframe
         player?.loadVideoById?.(currentVideoId);
         ambientPlayer?.loadVideoById?.(currentVideoId);
 
@@ -1345,7 +1395,6 @@
           if (domRefs['reaction-container']) domRefs['reaction-container'].innerHTML = '';
           domRefs.layoutWrapper?.classList.remove('is-clean-mode');
 
-          // [BARU] Sembunyikan UI Teks & Tombol Aksi secara instan
           domRefs.storyContainer?.classList.remove('show-ui');
 
           [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
@@ -1354,7 +1403,7 @@
           if (topBtn) topBtn.innerText = '⏸️';
 
           domRefs.storyContainer?.classList.remove('is-paused');
-          domRefs.storyContainer?.classList.add('is-loading'); // Kunci layar & tampilkan loader saat geser
+          domRefs.storyContainer?.classList.add('is-loading');
 
           const progressFill = document.getElementById('storyProgressFill');
           if (progressFill) {
@@ -1445,10 +1494,17 @@
           }
         };
 
+        // [A11Y] Dinamis Aria Label saat tombol Mute ditekan
         const toggleMute = () => {
           const isMuted = player?.isMuted?.();
           isMuted ? player?.unMute?.() : player?.mute?.();
-          if (domRefs.btnMute) domRefs.btnMute.innerText = isMuted ? '🔊' : '🔇';
+
+          if (domRefs.btnMute) {
+            domRefs.btnMute.innerText = isMuted ? '🔊' : '🔇';
+
+            // Mengubah perintah instruksi yang akan dilakukan jika user klik lagi
+            domRefs.btnMute.setAttribute('aria-label', isMuted ? 'Mute Audio' : 'Unmute Audio');
+          }
         };
 
         const toggleContext = (open) => {
@@ -1544,6 +1600,7 @@
           const moveScrub = (e) => {
             if (!isScrubbing) return;
             if (e.cancelable) e.preventDefault();
+            // [PERFORMANCE] Bisa juga dibungkus RequestAnimationFrame, tapi getBoundingClientRect cukup ringan jika tidak kompleks
             updateSeek(getClientX(e));
           };
           const stopScrub = () => {
@@ -1789,6 +1846,23 @@
         document.head.appendChild(tag);
       }
 
+      // [PERFORMANCE] Fungsi khusus untuk membuat Ambient Player agar dinamis saat resize
+      function createAmbientPlayer(videoId) {
+        if (window.innerWidth < 768 || ambientPlayer) return;
+
+        ambientPlayer = new YT.Player('ambientPlayer', {
+          videoId: videoId,
+          playerVars: { autoplay: 1, controls: 0, loop: 0, mute: 1, modestbranding: 1, playsinline: 1 },
+          events: {
+            onReady: (e) => {
+              e.target.mute();
+              e.target.playVideo();
+              document.getElementById('ambientPlayer').style.opacity = '1';
+            },
+          },
+        });
+      }
+
       function onYouTubeIframeAPIReady() {
         const initialVideoUrl = videoPlaylist[currentVideoIndex].url;
         const initialVideoId = parseYouTubeData(initialVideoUrl).videoId;
@@ -1823,9 +1897,6 @@
                   document.getElementById('storyContainer')?.classList.add('is-paused');
                 }
               }, 1500);
-              document.getElementById('youtubePlayer').style.opacity = '1';
-
-              // Buka kunci interaksi saat API sudah ready
               document.getElementById('layoutWrapper').classList.add('is-ready');
             },
             onError: (e) => {
@@ -1842,10 +1913,9 @@
                 if (ytPlayerElement) ytPlayerElement.style.opacity = '1';
                 if (btn) btn.innerText = '⏸️';
 
+                container?.classList.add('has-started');
                 container?.classList.remove('is-paused');
                 container?.classList.remove('is-loading');
-
-                // [BARU] Sinyal aman! Munculkan teks judul, deskripsi, dan tombol dengan mulus
                 container?.classList.add('show-ui');
 
                 if (thumbOverlay && thumbOverlay.style.display !== 'none') {
@@ -1864,11 +1934,9 @@
                   if (btn) btn.innerText = '▶️';
                   container?.classList.add('is-paused');
                 }
-
                 StoryManager.stopProgressBar();
                 ambientPlayer?.pauseVideo?.();
               } else if (e.data === YT.PlayerState.BUFFERING) {
-                // Murni diserahkan pada YouTube, tidak memanggil .is-loading lagi di sini
                 ambientPlayer?.pauseVideo?.();
               } else if (e.data === YT.PlayerState.ENDED) {
                 StoryManager.stopProgressBar();
@@ -1879,18 +1947,39 @@
           },
         });
 
-        if (window.innerWidth >= 768) {
-          ambientPlayer = new YT.Player('ambientPlayer', {
-            ...ytOptions,
-            events: {
-              onReady: (e) => {
-                e.target.mute();
-                e.target.playVideo();
-                document.getElementById('ambientPlayer').style.opacity = '1';
-              },
-            },
+        // Buat ambient player di awal hanya jika diload di layar besar
+        createAmbientPlayer(initialVideoId);
+
+        // [PERFORMANCE] Throttling Resize Event dengan RequestAnimationFrame
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+          if (resizeTimer) cancelAnimationFrame(resizeTimer);
+          resizeTimer = requestAnimationFrame(() => {
+            if (window.innerWidth < 768) {
+              // Jika masuk resolusi HP, hancurkan iframe ambient untuk hemat RAM
+              if (ambientPlayer && ambientPlayer.destroy) {
+                ambientPlayer.destroy();
+                ambientPlayer = null;
+
+                // YT.Player me-replace div. Kita kembalikan div placeholder-nya agar tidak hilang selamanya
+                const ambientContainer = document.getElementById('ambientContainer');
+                if (ambientContainer && !document.getElementById('ambientPlayer')) {
+                  const newDiv = document.createElement('div');
+                  newDiv.id = 'ambientPlayer';
+                  ambientContainer.appendChild(newDiv);
+                }
+              }
+            } else {
+              // Jika dilebarkan kembali ke Desktop, hidupkan kembali ambient playernya
+              if (!ambientPlayer && player && player.getVideoData) {
+                const currentData = player.getVideoData();
+                const currentVid =
+                  currentData.video_id || parseYouTubeData(videoPlaylist[currentVideoIndex].url).videoId;
+                createAmbientPlayer(currentVid);
+              }
+            }
           });
-        }
+        });
       }
 
       loadYouTubeAPI();
