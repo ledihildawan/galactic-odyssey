@@ -6,6 +6,12 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
+    <meta name="theme-color" content="#050505" />
+    <meta name="description" content="Telkomsel Story - Pengalaman Video Interaktif" />
+
+    <link rel="preconnect" href="https://www.youtube.com" />
+    <link rel="preconnect" href="https://i.ytimg.com" />
+
     <title>Telkomsel Story - Final Production Build</title>
     <style>
       :root {
@@ -35,10 +41,25 @@
         font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
         overflow: hidden;
         color: var(--text-main);
+        overscroll-behavior-y: none;
+        opacity: 0;
+        animation: smoothLoad 0.6s var(--ease-out) forwards;
       }
+
+      @keyframes smoothLoad {
+        to {
+          opacity: 1;
+        }
+      }
+
       :is(.story-excerpt, button):focus-visible {
         outline: 2px solid var(--brand-red);
-        outline-offset: 2px;
+        outline-offset: 4px;
+        border-radius: 8px;
+      }
+      .player-fab:focus-visible,
+      .reaction-option-btn:focus-visible {
+        border-radius: 50%;
       }
 
       /* [A11Y] Screen Reader Only */
@@ -162,7 +183,7 @@
         z-index: 5;
         background: linear-gradient(
           to bottom,
-          rgba(0, 0, 0, 0.2) 0,
+          rgba(0, 0, 0, 0.25) 0%,
           transparent 20%,
           transparent 65%,
           rgba(0, 0, 0, 0.85) 100%
@@ -170,7 +191,6 @@
         transition: opacity 0.4s var(--ease-out);
       }
 
-      /* Background Blur Edge Case untuk Video 16:9 */
       .video-blur-bg {
         position: absolute;
         inset: -10%;
@@ -235,11 +255,6 @@
         border-radius: 50%;
         animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
       }
-      @keyframes spin {
-        100% {
-          transform: rotate(360deg);
-        }
-      }
       .story-container.has-started .story-loader {
         opacity: 0;
         pointer-events: none;
@@ -260,11 +275,12 @@
           position: absolute;
           width: 100%;
           height: 100%;
-          background: #111111;
+          background-color: #111111;
           border-radius: var(--frame-radius);
           z-index: 5;
           opacity: 0;
           visibility: hidden;
+          overflow: hidden; /* Penting agar efek blur tidak meluber */
           filter: brightness(0.4);
           transition:
             transform 0.6s var(--ease-spring),
@@ -276,6 +292,35 @@
         .story-peek:hover {
           opacity: 1 !important;
           filter: brightness(0.6);
+        }
+
+        /* Pseudo-element untuk Blur Background (Fallback 16:9) */
+        .story-peek::before {
+          content: '';
+          position: absolute;
+          inset: -10%;
+          width: 120%;
+          height: 120%;
+          background-image: var(--peek-img, none);
+          background-size: cover;
+          background-position: center;
+          filter: blur(25px) brightness(0.4);
+          opacity: var(--peek-blur, 0);
+          z-index: 1;
+          pointer-events: none;
+        }
+
+        /* Pseudo-element untuk Thumbnail Utama */
+        .story-peek::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background-image: var(--peek-img, none);
+          background-size: var(--peek-fit, cover);
+          background-position: center;
+          background-repeat: no-repeat;
+          z-index: 2;
+          pointer-events: none;
         }
 
         .story-group-wrapper.has-prev .story-peek--prev {
@@ -1101,22 +1146,19 @@
 
     <script>
       // ================= YOUTUBE URL PARSER =================
-      function parseYouTubeData(url) {
+      const parseYouTubeData = (url) => {
         let videoId = '';
         let isShort = false;
         if (url.includes('/shorts/')) {
           isShort = true;
           videoId = url.substring(url.indexOf('/shorts/') + 8).split('?')[0];
         } else {
-          isShort = false;
           const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
           const match = url.match(regExp);
-          if (match && match[2].length === 11) {
-            videoId = match[2];
-          }
+          if (match && match[2].length === 11) videoId = match[2];
         }
         return { videoId, isShort };
-      }
+      };
 
       let player, ambientPlayer;
       let currentVideoIndex = 0;
@@ -1157,35 +1199,33 @@
         if (foundIndex > -1) currentVideoIndex = foundIndex;
       }
 
+      // Helper DRY untuk manipulasi DOM berulang
       const updateEls = (sel, prop, val) => document.querySelectorAll(sel).forEach((el) => (el[prop] = val));
+      const getEl = (id) => document.getElementById(id);
+      const actOnPlayers = (action, val) => [player, ambientPlayer].forEach((p) => p?.[action]?.(val));
 
       // ================= UPDATE UI LOGIC =================
       const updateVideoUI = () => {
         const data = videoPlaylist[currentVideoIndex];
-        const ytData = parseYouTubeData(data.url);
-        const currentVideoId = ytData.videoId;
-        const isVideoShort = ytData.isShort;
+        const { videoId: currentVideoId, isShort: isVideoShort } = parseYouTubeData(data.url);
 
-        const progressFill = document.getElementById('storyProgressFill');
+        const progressFill = getEl('storyProgressFill');
         if (progressFill) progressFill.style.transform = 'scaleX(0)';
 
+        // Teks & Meta
         updateEls('.story-excerpt__title, .story-view__title', 'innerText', data.title);
         updateEls('.story-view__meta', 'innerText', data.meta);
         updateEls('.story-body__cms-content', 'innerHTML', data.content);
 
-        // [A11Y]
-        const a11yAnnouncer = document.getElementById('a11yAnnouncer');
+        // Aksesibilitas Screen Reader
+        const a11yAnnouncer = getEl('a11yAnnouncer');
         if (a11yAnnouncer) a11yAnnouncer.textContent = 'Memutar video: ' + data.title;
 
-        // --- Logika Cerdas Excerpt & See More ---
-        const excerptContainers = document.querySelectorAll('.story-excerpt__text');
+        // Logika Excerpt Cerdas
         const hasDetailContent = data.content && data.content.trim() !== '';
-
-        excerptContainers.forEach((el) => {
+        document.querySelectorAll('.story-excerpt__text').forEach((el) => {
           const rawExcerpt = data.excerpt ? data.excerpt.trim() : '';
-
           if (rawExcerpt === '' && hasDetailContent) {
-            // Margin-left: 0 jika sendirian
             el.innerHTML = '<span class="story-read-more" style="margin-left: 0;">See more</span>';
           } else if (rawExcerpt === '') {
             el.innerHTML = '';
@@ -1193,108 +1233,116 @@
             el.innerHTML = rawExcerpt;
             if (hasDetailContent) {
               requestAnimationFrame(() => {
-                if (el.scrollHeight <= el.clientHeight) {
-                  if (!el.innerHTML.includes('story-read-more')) {
-                    el.innerHTML = rawExcerpt + '<span class="story-read-more"> ...</span>';
-                  }
+                if (el.scrollHeight <= el.clientHeight && !el.innerHTML.includes('story-read-more')) {
+                  el.innerHTML = rawExcerpt + '<span class="story-read-more"> ...</span>';
                 }
               });
             }
           }
         });
 
-        // --- Render Multiple Categories ---
-        const badgeContainers = document.querySelectorAll('.story-excerpt__badges, .story-view__badges');
-        badgeContainers.forEach((container) => {
+        // Kategori / Badges
+        document.querySelectorAll('.story-excerpt__badges, .story-view__badges').forEach((container) => {
           container.innerHTML = '';
-          if (data.categories && data.categories.length > 0) {
-            data.categories.forEach((category) => {
-              const span = document.createElement('span');
-              span.className = 'story-badge-item';
-              span.innerText = category;
-              container.appendChild(span);
-            });
-          }
+          data.categories?.forEach((category) => {
+            const span = document.createElement('span');
+            span.className = 'story-badge-item';
+            span.innerText = category;
+            container.appendChild(span);
+          });
         });
 
-        const ytPlayer = document.getElementById('youtubePlayer');
-        const thumbOverlay = document.getElementById('thumbnailOverlay');
-        const blurBg = document.getElementById('videoBlurBg');
+        // Referensi DOM Elemen Gambar & Video
+        const ytPlayerEl = getEl('youtubePlayer');
+        const thumbOverlay = getEl('thumbnailOverlay');
+        const blurBg = getEl('videoBlurBg');
+        const peekPrevEl = getEl('peekPrev');
+        const peekNextEl = getEl('peekNext');
 
         const objectFitStyle = isVideoShort ? 'cover' : 'contain';
-        if (ytPlayer) {
-          ytPlayer.style.objectFit = objectFitStyle;
-          ytPlayer.style.opacity = '0';
+        if (ytPlayerEl) {
+          ytPlayerEl.style.objectFit = objectFitStyle;
+          ytPlayerEl.style.opacity = '0';
         }
-
-        const maxResUrl = `https://i.ytimg.com/vi/${currentVideoId}/maxresdefault.jpg`;
-        const hqResUrl = `https://i.ytimg.com/vi/${currentVideoId}/hqdefault.jpg`;
-
-        if (blurBg) {
-          blurBg.style.backgroundImage = `url(${hqResUrl})`;
-          blurBg.style.opacity = isVideoShort ? '0' : '1';
-        }
-
         if (thumbOverlay) {
           thumbOverlay.style.transition = 'none';
           thumbOverlay.style.objectFit = objectFitStyle;
-          thumbOverlay.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";
-
-          thumbOverlay.onload = function () {
-            if (this.src.includes('data:image/gif')) return;
-            if (this.naturalWidth <= 120 && this.src.includes('maxresdefault')) {
-              this.src = hqResUrl;
-            } else {
-              this.style.display = '';
-            }
-          };
-
-          thumbOverlay.onerror = function () {
-            if (this.src.includes('maxresdefault')) {
-              this.src = hqResUrl;
-            } else {
-              this.style.display = 'none';
-              thumbnailCache.set(currentVideoId, 'error');
-            }
-          };
-
-          thumbOverlay.src = maxResUrl;
           thumbOverlay.style.opacity = '1';
         }
 
-        const preloadThumbnail = (urlToPreload) => {
-          const id = parseYouTubeData(urlToPreload).videoId;
-          if (!thumbnailCache.has(id)) {
-            thumbnailCache.set(id, 'loading');
-            const img = new Image();
-            img.onload = function () {
-              if (this.naturalWidth <= 120 && this.src.includes('maxresdefault')) {
-                const fallbackImg = new Image();
-                fallbackImg.onload = () => thumbnailCache.set(id, 'success');
-                fallbackImg.onerror = () => thumbnailCache.set(id, 'error');
-                fallbackImg.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
-              } else {
-                thumbnailCache.set(id, 'success');
-              }
-            };
-            img.onerror = function () {
-              const fallbackImg = new Image();
-              fallbackImg.onload = () => thumbnailCache.set(id, 'success');
-              fallbackImg.onerror = () => thumbnailCache.set(id, 'error');
-              fallbackImg.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
-            };
-            img.src = `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`;
+        // --- SISTEM RESOLVER THUMBNAIL TUNGGAL (DRY CACHING) ---
+        const resolveThumbnail = (index, callback) => {
+          if (index < 0 || index >= videoPlaylist.length) return callback(null);
+
+          const id = parseYouTubeData(videoPlaylist[index].url).videoId;
+
+          if (thumbnailCache.has(id)) {
+            const cached = thumbnailCache.get(id);
+            if (cached !== 'loading' && cached !== 'error') return callback(cached);
           }
+
+          thumbnailCache.set(id, 'loading');
+          const maxResUrl = `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`;
+          const hqResUrl = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+
+          const img = new Image();
+          img.onload = function () {
+            let finalUrl = this.src;
+            if (this.naturalWidth <= 120 && this.src.includes('maxresdefault')) finalUrl = hqResUrl;
+            thumbnailCache.set(id, finalUrl);
+            callback(finalUrl);
+          };
+          img.onerror = function () {
+            thumbnailCache.set(id, hqResUrl);
+            callback(hqResUrl);
+          };
+          img.src = maxResUrl;
         };
 
-        if (currentVideoIndex < videoPlaylist.length - 1) preloadThumbnail(videoPlaylist[currentVideoIndex + 1].url);
-        if (currentVideoIndex > 0) preloadThumbnail(videoPlaylist[currentVideoIndex - 1].url);
+        // 1. Terapkan Thumbnail Layar Utama
+        resolveThumbnail(currentVideoIndex, (url) => {
+          if (!url) return;
+          if (blurBg) {
+            blurBg.style.backgroundImage = `url(${url})`;
+            blurBg.style.opacity = isVideoShort ? '0' : '1';
+          }
+          if (thumbOverlay) {
+            thumbOverlay.src = url;
+            thumbOverlay.style.display = '';
+          }
+        });
 
+        // 2. Terapkan Thumbnail Peek Prev (Beradaptasi dengan rasio cover/contain)
+        resolveThumbnail(currentVideoIndex - 1, (url) => {
+          if (!peekPrevEl) return;
+          if (url) {
+            const isShort = parseYouTubeData(videoPlaylist[currentVideoIndex - 1].url).isShort;
+            peekPrevEl.style.setProperty('--peek-img', `url(${url})`);
+            peekPrevEl.style.setProperty('--peek-fit', isShort ? 'cover' : 'contain');
+            peekPrevEl.style.setProperty('--peek-blur', isShort ? '0' : '1');
+          } else {
+            peekPrevEl.style.setProperty('--peek-img', 'none');
+          }
+        });
+
+        // 3. Terapkan Thumbnail Peek Next (Beradaptasi dengan rasio cover/contain)
+        resolveThumbnail(currentVideoIndex + 1, (url) => {
+          if (!peekNextEl) return;
+          if (url) {
+            const isShort = parseYouTubeData(videoPlaylist[currentVideoIndex + 1].url).isShort;
+            peekNextEl.style.setProperty('--peek-img', `url(${url})`);
+            peekNextEl.style.setProperty('--peek-fit', isShort ? 'cover' : 'contain');
+            peekNextEl.style.setProperty('--peek-blur', isShort ? '0' : '1');
+          } else {
+            peekNextEl.style.setProperty('--peek-img', 'none');
+          }
+        });
+
+        // --- Update State Player & History ---
         const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?v=${currentVideoId}`;
         if (window.location.search !== `?v=${currentVideoId}`) window.history.pushState({ path: newUrl }, '', newUrl);
 
-        player?.loadVideoById?.(currentVideoId);
-        ambientPlayer?.loadVideoById?.(currentVideoId);
+        actOnPlayers('loadVideoById', currentVideoId);
 
         StoryManager.startProgressBar();
         StoryManager.checkNavState();
@@ -1311,9 +1359,8 @@
           isAnimating: false,
         };
 
-        const getDOM = (ids) => ids.reduce((acc, id) => ({ ...acc, [id]: document.getElementById(id) }), {});
         const domRefs = {
-          ...getDOM([
+          ...[
             'layoutWrapper',
             'storyGroupWrapper',
             'storyContainer',
@@ -1338,7 +1385,7 @@
             'btnOpenContext',
             'peekPrev',
             'peekNext',
-          ]),
+          ].reduce((acc, id) => ({ ...acc, [id]: getEl(id) }), {}),
           storyViewport: document.querySelector('.story-viewport'),
         };
 
@@ -1360,16 +1407,12 @@
           lastFocusable;
         const handleFocusTrap = (e) => {
           if (e.key !== 'Tab') return;
-          if (e.shiftKey) {
-            if (document.activeElement === firstFocusable) {
-              e.preventDefault();
-              lastFocusable.focus();
-            }
-          } else {
-            if (document.activeElement === lastFocusable) {
-              e.preventDefault();
-              firstFocusable.focus();
-            }
+          if (e.shiftKey && document.activeElement === firstFocusable) {
+            e.preventDefault();
+            lastFocusable.focus();
+          } else if (!e.shiftKey && document.activeElement === lastFocusable) {
+            e.preventDefault();
+            firstFocusable.focus();
           }
         };
 
@@ -1433,8 +1476,6 @@
         const checkNavState = () => {
           domRefs.btnPrevStory?.classList.toggle('is-disabled', currentVideoIndex === 0);
           domRefs.btnNextStory?.classList.toggle('is-disabled', currentVideoIndex === videoPlaylist.length - 1);
-
-          // Memunculkan peek frames atas/bawah
           domRefs.storyGroupWrapper?.classList.toggle('has-prev', currentVideoIndex > 0);
           domRefs.storyGroupWrapper?.classList.toggle('has-next', currentVideoIndex < videoPlaylist.length - 1);
         };
@@ -1445,31 +1486,27 @@
           hideSteadyIcon();
           if (domRefs['reaction-container']) domRefs['reaction-container'].innerHTML = '';
           domRefs.layoutWrapper?.classList.remove('is-clean-mode');
-
           domRefs.storyContainer?.classList.remove('show-ui');
 
-          [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
+          actOnPlayers('pauseVideo');
 
-          const topBtn = document.getElementById('btnPlayPause');
-          if (topBtn) topBtn.innerText = '⏸️';
+          if (domRefs.btnPlayPause) domRefs.btnPlayPause.innerText = '⏸️';
 
           domRefs.storyContainer?.classList.remove('is-paused');
           domRefs.storyContainer?.classList.add('is-loading');
 
-          const progressFill = document.getElementById('storyProgressFill');
-          if (progressFill) {
-            progressFill.style.transition = 'none';
-            progressFill.style.transform = 'scaleX(0)';
-            requestAnimationFrame(() => (progressFill.style.transition = ''));
+          if (domRefs.storyProgressFill) {
+            domRefs.storyProgressFill.style.transition = 'none';
+            domRefs.storyProgressFill.style.transform = 'scaleX(0)';
+            requestAnimationFrame(() => (domRefs.storyProgressFill.style.transition = ''));
           }
 
-          const thumbOverlay = document.getElementById('thumbnailOverlay');
+          const thumbOverlay = getEl('thumbnailOverlay');
           if (thumbOverlay) {
             thumbOverlay.style.transition = 'none';
             thumbOverlay.style.opacity = '1';
           }
-
-          const ambientEl = document.getElementById('ambientPlayer');
+          const ambientEl = getEl('ambientPlayer');
           if (ambientEl) {
             ambientEl.style.transition = 'none';
             ambientEl.style.opacity = '0';
@@ -1481,7 +1518,7 @@
           const duration = player.getDuration();
           if (!duration) return;
           const newTime = Math.max(0, Math.min(player.getCurrentTime() + offset, duration));
-          [player, ambientPlayer].forEach((p) => p?.seekTo?.(newTime, true));
+          actOnPlayers('seekTo', newTime);
           domRefs.storyProgressFill.style.transform = `scaleX(${newTime / duration})`;
         };
 
@@ -1528,14 +1565,14 @@
         };
 
         const closeStory = () => {
-          [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
+          actOnPlayers('pauseVideo');
           domRefs.layoutWrapper.style.opacity = '0';
           setTimeout(() => (domRefs.layoutWrapper.style.display = 'none'), 500);
         };
 
         const togglePlayPause = () => {
           if (player?.getPlayerState?.() === YT.PlayerState.PLAYING) {
-            [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
+            actOnPlayers('pauseVideo');
             flashIcon('⏸️');
           } else {
             player?.playVideo?.();
@@ -1566,21 +1603,17 @@
           if (open) {
             domRefs['icon-enter-fs'].style.display = 'block';
             domRefs['icon-exit-fs'].style.display = 'none';
-            if (window.innerWidth < 1366) [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
+            if (window.innerWidth < 1366) actOnPlayers('pauseVideo');
             closeReactionMenu();
             domRefs.storyGroupWrapper?.setAttribute('aria-hidden', 'true');
             initFocusTrap(ctx);
-            setTimeout(() => {
-              const titleEl = ctx.querySelector('.story-view__title');
-              if (titleEl) titleEl.focus();
-              else firstFocusable?.focus();
-            }, 100);
+            setTimeout(() => (ctx.querySelector('.story-view__title') || firstFocusable)?.focus(), 100);
           } else {
             domRefs.storySheet?.classList.remove('is-active');
             domRefs.storyPopup?.classList.remove('is-active');
             domRefs.storyCardDashboard?.classList.remove('is-active');
             domRefs.storySheet.querySelector('.story-sheet__content').style.transform = '';
-            if (window.innerWidth < 1366) [player, ambientPlayer].forEach((p) => p?.playVideo?.());
+            if (window.innerWidth < 1366) actOnPlayers('playVideo');
             ctx.removeEventListener('keydown', handleFocusTrap);
             domRefs.storyGroupWrapper?.removeAttribute('aria-hidden');
             domRefs.btnOpenContext?.focus();
@@ -1642,7 +1675,7 @@
             const percentage = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
             domRefs.storyProgressFill.style.transform = `scaleX(${percentage})`;
             const newTime = (player?.getDuration?.() ?? 0) * percentage;
-            [player, ambientPlayer].forEach((p) => p?.seekTo?.(newTime, true));
+            actOnPlayers('seekTo', newTime);
           };
           const moveScrub = (e) => {
             if (!isScrubbing) return;
@@ -1652,7 +1685,7 @@
           const stopScrub = () => {
             if (!isScrubbing) return;
             isScrubbing = false;
-            if (wasPlaying) [player, ambientPlayer].forEach((p) => p?.playVideo?.());
+            if (wasPlaying) actOnPlayers('playVideo');
             window.removeEventListener('mousemove', moveScrub);
             window.removeEventListener('touchmove', moveScrub);
             window.removeEventListener('mouseup', stopScrub);
@@ -1661,7 +1694,7 @@
           const startScrub = (e) => {
             isScrubbing = true;
             wasPlaying = player?.getPlayerState?.() === YT.PlayerState.PLAYING;
-            if (wasPlaying) [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
+            if (wasPlaying) actOnPlayers('pauseVideo');
             updateSeek(getClientX(e));
             window.addEventListener('mousemove', moveScrub);
             window.addEventListener('touchmove', moveScrub, { passive: false });
@@ -1697,7 +1730,7 @@
                 player?.pauseVideo?.();
               } else {
                 const rate = holdAction === 'forward' ? 2 : 0.5;
-                [player, ambientPlayer].forEach((p) => p?.setPlaybackRate?.(rate));
+                actOnPlayers('setPlaybackRate', rate);
                 showSteadyIcon(holdAction === 'forward' ? '⏩ 2x' : '⏪ 0.5x');
               }
             }, 400);
@@ -1719,7 +1752,7 @@
                 domRefs.layoutWrapper?.classList.remove('is-clean-mode');
                 player?.playVideo?.();
               } else {
-                [player, ambientPlayer].forEach((p) => p?.setPlaybackRate?.(1));
+                actOnPlayers('setPlaybackRate', 1);
                 hideSteadyIcon();
               }
               return;
@@ -1729,14 +1762,10 @@
               if (holdAction === 'rewind') {
                 seekVideo(-10);
                 flashIcon('⏪');
-                return;
-              }
-              if (holdAction === 'forward') {
+              } else if (holdAction === 'forward') {
                 seekVideo(10);
                 flashIcon('⏩');
-                return;
-              }
-              if (holdAction === 'playpause') {
+              } else if (holdAction === 'playpause') {
                 const tapLength = Date.now() - lastTapTime;
                 lastTapTime = Date.now();
                 if (tapLength > 0 && tapLength < 300) {
@@ -1888,13 +1917,13 @@
       })();
 
       // ================= INISIALISASI YOUTUBE API =================
-      function loadYouTubeAPI() {
+      const loadYouTubeAPI = () => {
         const tag = document.createElement('script');
         tag.src = 'https://www.youtube.com/iframe_api';
         document.head.appendChild(tag);
-      }
+      };
 
-      function createAmbientPlayer(videoId) {
+      const createAmbientPlayer = (videoId) => {
         if (window.innerWidth < 768 || ambientPlayer) return;
         ambientPlayer = new YT.Player('ambientPlayer', {
           videoId: videoId,
@@ -1903,11 +1932,11 @@
             onReady: (e) => {
               e.target.mute();
               e.target.playVideo();
-              document.getElementById('ambientPlayer').style.opacity = '1';
+              getEl('ambientPlayer').style.opacity = '1';
             },
           },
         });
-      }
+      };
 
       function onYouTubeIframeAPIReady() {
         const initialVideoUrl = videoPlaylist[currentVideoIndex].url;
@@ -1915,7 +1944,7 @@
 
         updateVideoUI();
 
-        const ytOptions = {
+        player = new YT.Player('youtubePlayer', {
           videoId: initialVideoId,
           playerVars: {
             autoplay: 1,
@@ -1927,44 +1956,36 @@
             rel: 0,
             playsinline: 1,
           },
-        };
-
-        player = new YT.Player('youtubePlayer', {
-          ...ytOptions,
           events: {
             onReady: (e) => {
               e.target.mute();
               e.target.playVideo();
               setTimeout(() => {
-                const playerState = e.target.getPlayerState();
-                if (playerState !== YT.PlayerState.PLAYING && playerState !== YT.PlayerState.BUFFERING) {
-                  const topBtn = document.getElementById('btnPlayPause');
+                const state = e.target.getPlayerState();
+                if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
+                  const topBtn = getEl('btnPlayPause');
                   if (topBtn) topBtn.innerText = '▶️';
-                  document.getElementById('storyContainer')?.classList.add('is-paused');
+                  getEl('storyContainer')?.classList.add('is-paused');
                 }
               }, 1500);
-
-              // Pembukaan Interaksi (Opacity player tidak diset '1' di sini agar transisi first load mulus)
-              document.getElementById('layoutWrapper').classList.add('is-ready');
+              getEl('layoutWrapper').classList.add('is-ready');
             },
             onError: (e) => {
               console.error('YouTube Error:', e.data);
-              document.getElementById('layoutWrapper').classList.add('is-ready');
+              getEl('layoutWrapper').classList.add('is-ready');
             },
             onStateChange: (e) => {
-              const btn = document.getElementById('btnPlayPause');
-              const container = document.getElementById('storyContainer');
-              const thumbOverlay = document.getElementById('thumbnailOverlay');
-              const ytPlayerElement = document.getElementById('youtubePlayer');
+              const btn = getEl('btnPlayPause');
+              const container = getEl('storyContainer');
+              const thumbOverlay = getEl('thumbnailOverlay');
+              const ytPlayerElement = getEl('youtubePlayer');
 
               if (e.data === YT.PlayerState.PLAYING) {
                 if (ytPlayerElement) ytPlayerElement.style.opacity = '1';
                 if (btn) btn.innerText = '⏸️';
 
-                container?.classList.add('has-started');
-                container?.classList.remove('is-paused');
-                container?.classList.remove('is-loading');
-                container?.classList.add('show-ui');
+                container?.classList.add('has-started', 'show-ui');
+                container?.classList.remove('is-paused', 'is-loading');
 
                 if (thumbOverlay && thumbOverlay.style.display !== 'none') {
                   thumbOverlay.style.transition = 'opacity 0.6s ease';
@@ -1973,7 +1994,7 @@
 
                 ambientPlayer?.seekTo?.(player.getCurrentTime(), true);
                 ambientPlayer?.playVideo?.();
-                const ambientEl = document.getElementById('ambientPlayer');
+                const ambientEl = getEl('ambientPlayer');
                 if (ambientEl) ambientEl.style.opacity = '1';
 
                 StoryManager.startProgressBar();
@@ -2002,23 +2023,20 @@
           if (resizeTimer) cancelAnimationFrame(resizeTimer);
           resizeTimer = requestAnimationFrame(() => {
             if (window.innerWidth < 768) {
-              if (ambientPlayer && ambientPlayer.destroy) {
+              if (ambientPlayer?.destroy) {
                 ambientPlayer.destroy();
                 ambientPlayer = null;
-                const ambientContainer = document.getElementById('ambientContainer');
-                if (ambientContainer && !document.getElementById('ambientPlayer')) {
+                const ambientContainer = getEl('ambientContainer');
+                if (ambientContainer && !getEl('ambientPlayer')) {
                   const newDiv = document.createElement('div');
                   newDiv.id = 'ambientPlayer';
                   ambientContainer.appendChild(newDiv);
                 }
               }
-            } else {
-              if (!ambientPlayer && player && player.getVideoData) {
-                const currentData = player.getVideoData();
-                const currentVid =
-                  currentData.video_id || parseYouTubeData(videoPlaylist[currentVideoIndex].url).videoId;
-                createAmbientPlayer(currentVid);
-              }
+            } else if (!ambientPlayer && player?.getVideoData) {
+              const currentVid =
+                player.getVideoData().video_id || parseYouTubeData(videoPlaylist[currentVideoIndex].url).videoId;
+              createAmbientPlayer(currentVid);
             }
           });
         });
