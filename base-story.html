@@ -701,6 +701,17 @@
         padding: 0 64px 0 28px;
         margin-bottom: 16px;
       }
+      .story-view__badge {
+        background: var(--brand-red);
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 6px;
+        display: inline-block;
+        margin-bottom: 12px;
+      }
       .story-view__title {
         font-size: 24px;
         font-weight: 800;
@@ -888,10 +899,6 @@
           opacity: 1;
           pointer-events: auto;
         }
-        .layout-wrapper.is-ui-open .story-excerpt {
-          opacity: 0;
-          pointer-events: none;
-        }
       }
     </style>
   </head>
@@ -993,6 +1000,7 @@
     <template id="storyContentTemplate">
       <div class="story-view is-active">
         <div class="story-header">
+          <span class="story-view__badge">Kategori</span>
           <h3 class="story-view__title" tabindex="-1">Judul</h3>
           <span class="story-view__meta" id="storyMeta">Informasi • Meta</span>
         </div>
@@ -1056,7 +1064,7 @@
         const progressFill = document.getElementById('storyProgressFill');
         if (progressFill) progressFill.style.transform = 'scaleX(0)';
 
-        updateEls('.story-excerpt__badge', 'innerText', data.badge);
+        updateEls('.story-excerpt__badge, .story-view__badge', 'innerText', data.badge);
         updateEls('.story-excerpt__title, .story-view__title', 'innerText', data.title);
         updateEls('.story-excerpt__text', 'innerText', data.excerpt);
         updateEls('.story-view__meta', 'innerText', data.meta);
@@ -1268,6 +1276,7 @@
         const resetVideoState = () => {
           if (state.isOpen) closeContext();
           closeReactionMenu();
+          hideSteadyIcon();
           if (domRefs['reaction-container']) domRefs['reaction-container'].innerHTML = '';
           domRefs.layoutWrapper?.classList.remove('is-clean-mode');
 
@@ -1624,6 +1633,26 @@
           initGestures();
           initDrag();
 
+          let lastWheelTime = 0;
+          window.addEventListener(
+            'wheel',
+            (e) => {
+              if (e.target.closest('.story-body, .story-card, .story-sheet, .story-popup')) return;
+
+              const now = Date.now();
+              if (now - lastWheelTime < 800 || state.isAnimating) return;
+
+              if (e.deltaY > 20) {
+                switchVideo(1);
+                lastWheelTime = now;
+              } else if (e.deltaY < -20) {
+                switchVideo(-1);
+                lastWheelTime = now;
+              }
+            },
+            { passive: true },
+          );
+
           document.addEventListener('keydown', (e) => {
             if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || state.isOpen || state.isAnimating) return;
             const keyMap = {
@@ -1684,7 +1713,7 @@
         };
 
         initEventListeners();
-        return { startProgressBar, stopProgressBar, checkNavState, showSteadyIcon }; // Export showSteadyIcon untuk watchdog
+        return { startProgressBar, stopProgressBar, checkNavState, showSteadyIcon, hideSteadyIcon };
       })();
 
       function loadYouTubeAPI() {
@@ -1719,8 +1748,14 @@
               // PERBAIKAN 3: Autoplay Resilience (Watchdog Timer)
               setTimeout(() => {
                 if (e.target.getPlayerState() !== YT.PlayerState.PLAYING) {
-                  // Jika masih belum play (karena diblokir browser/Low Power Mode), munculkan tombol play
+                  // Jika masih belum play, munculkan tombol play
                   StoryManager.showSteadyIcon('▶️');
+
+                  // ======== TAMBAHKAN BARIS INI ========
+                  // Sinkronkan juga tombol kecil di atas
+                  const topBtn = document.getElementById('btnPlayPause');
+                  if (topBtn) topBtn.innerText = '▶️';
+                  // =====================================
                 }
               }, 1000);
 
@@ -1739,6 +1774,8 @@
               if (e.data === YT.PlayerState.PLAYING) {
                 if (btn) btn.innerText = '⏸️';
                 container?.classList.remove('is-paused');
+
+                StoryManager.hideSteadyIcon();
 
                 if (thumbOverlay && thumbOverlay.style.display !== 'none') {
                   thumbOverlay.style.transition = 'opacity 0.6s ease';
