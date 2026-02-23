@@ -130,6 +130,7 @@
           transform 0.6s var(--ease-out);
         will-change: filter, transform;
       }
+
       .story-video-wrapper {
         position: relative;
         width: 100%;
@@ -151,6 +152,20 @@
           rgba(0, 0, 0, 0.85) 100%
         );
         transition: opacity 0.4s var(--ease-out);
+      }
+
+      /* ILUSI PRELOAD: THUMBNAIL OVERLAY */
+      .thumbnail-overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 8;
+        opacity: 1;
+        transition: opacity 0.5s ease;
+        pointer-events: none;
+        background: var(--brand-dark);
       }
 
       #youtubePlayer {
@@ -786,7 +801,6 @@
           margin: auto 0;
         }
 
-        /* TABLET KHUSUS */
         @media (max-width: 1365px) {
           .story-group-wrapper {
             height: calc(100dvh - 64px);
@@ -883,7 +897,11 @@
             <div class="ambient-layer"><div id="ambientPlayer"></div></div>
             <div class="story-viewport">
               <div class="story-loader"><div class="story-loader__spinner"></div></div>
-              <div class="story-video-wrapper"><div id="youtubePlayer"></div></div>
+
+              <div class="story-video-wrapper">
+                <img id="thumbnailOverlay" class="thumbnail-overlay" alt="" aria-hidden="true" />
+                <div id="youtubePlayer"></div>
+              </div>
 
               <div id="reaction-container"></div>
               <div class="story-center-play" id="centerPlayIndicator" aria-hidden="true">▶️</div>
@@ -1015,6 +1033,14 @@
         },
       ];
 
+      // FITUR 2: INISIALISASI DEEP LINKING (Mengecek parameter URL ?v=...)
+      const urlParams = new URLSearchParams(window.location.search);
+      const videoParam = urlParams.get('v');
+      if (videoParam) {
+        const foundIndex = videoPlaylist.findIndex((v) => v.id === videoParam);
+        if (foundIndex > -1) currentVideoIndex = foundIndex;
+      }
+
       const updateEls = (sel, prop, val) => document.querySelectorAll(sel).forEach((el) => (el[prop] = val));
 
       const updateVideoUI = () => {
@@ -1027,6 +1053,17 @@
         updateEls('.story-excerpt__text', 'innerText', data.excerpt);
         updateEls('.story-view__meta', 'innerText', data.meta);
         updateEls('.story-body__cms-content', 'innerHTML', data.content);
+
+        // FITUR 1: Set dan Tampilkan Thumbnail Overlay
+        const thumbOverlay = document.getElementById('thumbnailOverlay');
+        if (thumbOverlay) {
+          thumbOverlay.src = `https://img.youtube.com/vi/${data.id}/maxresdefault.jpg`;
+          thumbOverlay.style.opacity = '1';
+        }
+
+        // FITUR 2: Update URL Browser (State Persistence tanpa reload)
+        const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?v=${data.id}`;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
 
         player?.loadVideoById?.(data.id);
         ambientPlayer?.loadVideoById?.(data.id);
@@ -1049,6 +1086,7 @@
         const domRefs = {
           ...getDOM([
             'layoutWrapper',
+            'storyGroupWrapper',
             'storyProgressBarWrapper',
             'storyProgressFill',
             'storySheet',
@@ -1082,6 +1120,38 @@
           if (target && !target.innerHTML.trim())
             target.appendChild(domRefs.storyContentTemplate.content.cloneNode(true));
         });
+
+        // FITUR 4: LOGIKA FOCUS TRAP (Aksesibilitas)
+        let focusableElements = [],
+          firstFocusable,
+          lastFocusable;
+        const handleFocusTrap = (e) => {
+          if (e.key !== 'Tab') return;
+          if (e.shiftKey) {
+            // Shift + Tab
+            if (document.activeElement === firstFocusable) {
+              e.preventDefault();
+              lastFocusable.focus();
+            }
+          } else {
+            // Tab
+            if (document.activeElement === lastFocusable) {
+              e.preventDefault();
+              firstFocusable.focus();
+            }
+          }
+        };
+
+        const initFocusTrap = (ctx) => {
+          focusableElements = ctx.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          );
+          if (focusableElements.length) {
+            firstFocusable = focusableElements[0];
+            lastFocusable = focusableElements[focusableElements.length - 1];
+            ctx.addEventListener('keydown', handleFocusTrap);
+          }
+        };
 
         let lastSyncCheck = 0;
         const loopProgress = () => {
@@ -1141,7 +1211,7 @@
           if (domRefs['reaction-container']) domRefs['reaction-container'].innerHTML = '';
           domRefs.layoutWrapper?.classList.remove('is-clean-mode');
 
-          // --- TAMBAHAN: Matikan/Sembunyikan cahaya ambient saat transisi ---
+          // Matikan ambient sejenak saat ganti video
           const ambientEl = document.getElementById('ambientPlayer');
           if (ambientEl) ambientEl.style.opacity = '0';
         };
@@ -1189,7 +1259,7 @@
           if (state.isAnimating) return;
           const newIndex = currentVideoIndex + step;
           if (newIndex >= 0 && newIndex < videoPlaylist.length) {
-            resetVideoState(); // <-- Ambient di-hide di sini
+            resetVideoState();
             slideTransition(step > 0 ? 'next' : 'prev', () => {
               currentVideoIndex = newIndex;
               updateVideoUI();
@@ -1235,13 +1305,27 @@
             domRefs['icon-exit-fs'].style.display = 'none';
             if (window.innerWidth < 1366) [player, ambientPlayer].forEach((p) => p?.pauseVideo?.());
             closeReactionMenu();
-            setTimeout(() => ctx.querySelector('.story-view__title')?.focus(), 100);
+
+            // Focus Trap Active
+            initFocusTrap(ctx);
+            domRefs.storyGroupWrapper?.setAttribute('aria-hidden', 'true'); // Sembunyikan layer belakang dari Screen Reader
+
+            setTimeout(() => {
+              const titleEl = ctx.querySelector('.story-view__title');
+              if (titleEl) titleEl.focus();
+              else firstFocusable?.focus();
+            }, 100);
           } else {
             domRefs.storySheet?.classList.remove('is-active');
             domRefs.storyPopup?.classList.remove('is-active');
             domRefs.storyCardDashboard?.classList.remove('is-active');
             domRefs.storySheet.querySelector('.story-sheet__content').style.transform = '';
+
             if (window.innerWidth < 1366) [player, ambientPlayer].forEach((p) => p?.playVideo?.());
+
+            // Focus Trap Teardown
+            ctx.removeEventListener('keydown', handleFocusTrap);
+            domRefs.storyGroupWrapper?.removeAttribute('aria-hidden');
             domRefs.btnOpenContext?.focus();
           }
         };
@@ -1257,8 +1341,9 @@
           domRefs.btnToggleReaction?.setAttribute('aria-expanded', 'false');
         };
 
+        // FITUR 2: Update Share URL (Membagikan URL spesifik ?v=... kita)
         const nativeShare = async () => {
-          const url = `https://www.youtube.com/watch?v=${videoPlaylist[currentVideoIndex].id}`;
+          const url = window.location.href;
           try {
             if (navigator.share) await navigator.share({ title: videoPlaylist[currentVideoIndex].title, url });
             else {
@@ -1554,16 +1639,19 @@
             onStateChange: (e) => {
               const btn = document.getElementById('btnPlayPause');
               const container = document.getElementById('storyContainer');
+              const thumbOverlay = document.getElementById('thumbnailOverlay');
 
               if (e.data === YT.PlayerState.PLAYING) {
                 if (btn) btn.innerText = '⏸️';
                 container?.classList.remove('is-paused');
 
-                // Sinkronkan playback ambient
+                // FITUR 1: Matikan Ilusi Thumbnail dengan Halus
+                if (thumbOverlay) thumbOverlay.style.opacity = '0';
+
+                // Sync ambient
                 ambientPlayer?.seekTo?.(player.getCurrentTime(), true);
                 ambientPlayer?.playVideo?.();
 
-                // --- TAMBAHAN: Tampilkan cahaya ambient kembali dengan transisi lembut ---
                 const ambientEl = document.getElementById('ambientPlayer');
                 if (ambientEl) ambientEl.style.opacity = '1';
 
