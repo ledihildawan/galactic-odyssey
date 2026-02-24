@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://www.youtube.com" />
     <link rel="preconnect" href="https://i.ytimg.com" />
 
-    <title>Telkomsel Story - Final Build Stabil (Adapter Pattern)</title>
+    <title>Telkomsel Story - Final Build Stabil (Adapter Pattern + Image)</title>
     <style>
       :root {
         --brand-red: #ee2d24;
@@ -1340,6 +1340,7 @@
             };
             img.src = maxResUrl;
           } else {
+            // Untuk format non-youtube (termasuk gambar statis kita), gunakan fallback ini
             callback(data.thumbnail || null);
           }
         },
@@ -1487,11 +1488,99 @@
         }
       }
 
+      // ================= ADAPTER UNTUK GAMBAR (IMAGE) =================
+      class ImageHandler extends BaseMediaHandler {
+        constructor(container, data, callbacks, isAmbient = false) {
+          super(container, data, callbacks, isAmbient);
+          this.duration = 5; // Durasi simulasi gambar (5 detik)
+          this.currentTime = 0;
+          this.timer = null;
+          this.lastTick = 0;
+          this.state = MEDIA_STATE.UNSTARTED;
+        }
+
+        load() {
+          this.img = document.createElement('img');
+          this.img.src = this.data.url;
+          this.img.style.width = '100%';
+          this.img.style.height = '100%';
+          // Gambar utama pakai 'contain', layer blur (ambient) pakai 'cover'
+          this.img.style.objectFit = this.isAmbient ? 'cover' : 'contain';
+          this.img.style.pointerEvents = 'none';
+
+          this.container.appendChild(this.img);
+
+          const handleLoad = () => {
+            this.state = MEDIA_STATE.PAUSED; // Siap dimainkan
+            if (this.callbacks.onReady) this.callbacks.onReady({ target: this });
+          };
+
+          if (this.img.complete) {
+            handleLoad();
+          } else {
+            this.img.onload = handleLoad;
+            this.img.onerror = () => console.error('Gagal memuat gambar:', this.data.url);
+          }
+        }
+
+        tick() {
+          if (this.state !== MEDIA_STATE.PLAYING) return;
+
+          const now = Date.now();
+          const delta = (now - this.lastTick) / 1000;
+          this.currentTime += delta;
+          this.lastTick = now;
+
+          if (this.currentTime >= this.duration) {
+            this.currentTime = this.duration;
+            this.state = MEDIA_STATE.ENDED;
+            this.emitStateChange(this.state);
+          } else {
+            this.timer = requestAnimationFrame(() => this.tick());
+          }
+        }
+
+        play() {
+          if (this.currentTime >= this.duration) this.currentTime = 0;
+          this.state = MEDIA_STATE.PLAYING;
+          this.lastTick = Date.now();
+          this.emitStateChange(this.state);
+          this.tick();
+        }
+
+        pause() {
+          this.state = MEDIA_STATE.PAUSED;
+          cancelAnimationFrame(this.timer);
+          this.emitStateChange(this.state);
+        }
+
+        seekTo(time) {
+          this.currentTime = Math.max(0, Math.min(time, this.duration));
+        }
+
+        getCurrentTime() {
+          return this.currentTime;
+        }
+        getDuration() {
+          return this.duration;
+        }
+        getState() {
+          return this.state;
+        }
+
+        destroy() {
+          cancelAnimationFrame(this.timer);
+          super.destroy();
+        }
+      }
+
       class MediaFactory {
         static create(container, data, callbacks, isAmbient = false) {
           switch (data.type) {
             case 'youtube':
               return new YouTubeHandler(container, data, callbacks, isAmbient);
+            case 'image':
+              return new ImageHandler(container, data, callbacks, isAmbient);
             default:
               console.warn('Tipe media tidak didukung');
               return null;
@@ -1509,6 +1598,18 @@
           meta: 'UEFA Champions League • 2 Jam yang lalu',
           excerpt: 'Semua gol dari Matchday ke-7 Liga Champions UEFA! Laga penuh aksi, kejutan tak terduga.',
           content: '<p>Saksikan cuplikan lengkap seluruh gol dari ajang UEFA Champions League Matchday ke-7...</p>',
+        },
+        // --- ADAPTER BARU DI SINI ---
+        {
+          type: 'image',
+          url: 'https://images.unsplash.com/photo-1682687220742-aba13b6e50ba?q=80&w=1080&auto=format&fit=crop',
+          thumbnail: 'https://images.unsplash.com/photo-1682687220742-aba13b6e50ba?q=80&w=200&auto=format&fit=crop', // Harus ada thumbnail manual
+          categories: ['Photography', 'Image API'],
+          title: 'Keindahan Alam (Contoh Adapter Gambar)',
+          meta: 'Unsplash Image • Baru Saja',
+          excerpt: 'Contoh sempurna eksekusi arsitektur terbuka di mana file statis dimainkan bagai video.',
+          content:
+            '<p>Kode Anda sangat baik dalam menerapkan Adapter Pattern. Kelas <code>ImageHandler</code> berhasil disisipkan dengan mulus tanpa mengubah inti kode UI, menambahkan simulasi waktu 5 detik untuk mengakomodasi navigasi progres.</p>',
         },
         {
           type: 'youtube',
@@ -1586,7 +1687,7 @@
           currentAmbient?.pause();
         } else if (state === MEDIA_STATE.ENDED) {
           StoryManager.stopProgressBar();
-          // Loop video secara otomatis (Sesuai instruksi untuk tidak ada fitur auto-next)
+          // Loop video/gambar secara otomatis (Sesuai instruksi untuk tidak ada fitur auto-next)
           currentMedia.seekTo(0);
           currentMedia.play();
         }
@@ -1647,6 +1748,7 @@
         const peekNextEl = getEl('peekNext');
 
         const isShort = data.type === 'youtube' && parseYouTubeData(data.url).isShort;
+        // Gambar akan memanfaatkan object-fit contain default
         const objectFitStyle = isShort ? 'cover' : 'contain';
 
         if (thumbOverlay) {
@@ -1731,6 +1833,10 @@
           const id = parseYouTubeData(data.url).videoId;
           const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?v=${id}`;
           if (window.location.search !== `?v=${id}`) window.history.pushState({ path: newUrl }, '', newUrl);
+        } else {
+          // Hapus parameter ?v= dari URL agar lebih bersih jika sedang fokus di image adapter
+          const base = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
+          window.history.pushState({ path: base }, '', base);
         }
 
         StoryManager.startProgressBar();
