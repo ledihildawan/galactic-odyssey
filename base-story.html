@@ -1853,6 +1853,13 @@
             thumbOverlay.src = url;
             thumbOverlay.style.display = '';
           }
+
+          const ambientWrapper = getEl('ambientContainer');
+          if (ambientWrapper) {
+            ambientWrapper.style.backgroundImage = `url(${url})`;
+            ambientWrapper.style.backgroundSize = 'cover';
+            ambientWrapper.style.backgroundPosition = 'center';
+          }
         });
         ThumbnailResolver.resolve(videoPlaylist[currentVideoIndex - 1], (url) => {
           if (!peekPrevEl) return;
@@ -2097,6 +2104,11 @@
             mainContainer.style.transition = 'none';
             mainContainer.style.opacity = '0';
             requestAnimationFrame(() => (mainContainer.style.transition = 'opacity 0.4s var(--ease-out)'));
+          }
+
+          const ambientWrapper = getEl('ambientContainer');
+          if (ambientWrapper) {
+            ambientWrapper.style.backgroundImage = 'none';
           }
 
           if (domRefs.ambientMediaContainer) {
