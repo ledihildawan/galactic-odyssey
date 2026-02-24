@@ -2083,9 +2083,28 @@
           if (thumbOverlay) {
             thumbOverlay.style.transition = 'none';
             thumbOverlay.style.opacity = '1';
+            thumbOverlay.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";
           }
+
+          const blurBg = getEl('videoBlurBg');
+          if (blurBg) {
+            blurBg.style.backgroundImage = 'none';
+            blurBg.style.opacity = '0';
+          }
+
+          const mainContainer = getEl('mainMediaContainer');
+          if (mainContainer) {
+            mainContainer.style.transition = 'none';
+            mainContainer.style.opacity = '0';
+            requestAnimationFrame(() => (mainContainer.style.transition = 'opacity 0.4s var(--ease-out)'));
+          }
+
           if (domRefs.ambientMediaContainer) {
+            domRefs.ambientMediaContainer.style.transition = 'none';
             domRefs.ambientMediaContainer.style.opacity = '0';
+            requestAnimationFrame(
+              () => (domRefs.ambientMediaContainer.style.transition = 'opacity 1s var(--ease-out)'),
+            );
           }
         };
 
