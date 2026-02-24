@@ -1,0 +1,2612 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#050505" />
+    <meta name="description" content="Telkomsel Story - Pengalaman Video Interaktif" />
+
+    <link rel="preconnect" href="https://www.youtube.com" />
+    <link rel="preconnect" href="https://i.ytimg.com" />
+
+    <title>Telkomsel Story - Final Build Stabil (Multi Adapter & Ambient Universal)</title>
+    <style>
+      :root {
+        --brand-red: #ee2d24;
+        --brand-dark: #050505;
+        --surface: #ffffff;
+        --bg-gray: #f8f9fa;
+        --text-main: #111111;
+        --text-sub: #555555;
+        --glass-bg: rgba(20, 20, 20, 0.6);
+        --glass-border: rgba(255, 255, 255, 0.15);
+        --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+        --ease-spring: cubic-bezier(0.34, 1.5, 0.64, 1);
+        --card-width: 420px;
+        --fab-size: 44px;
+        --frame-radius: 16px;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+      }
+      body {
+        background: #0f0f11;
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+        overflow: hidden;
+        color: var(--text-main);
+        overscroll-behavior-y: none;
+        opacity: 0;
+        animation: smoothLoad 0.6s var(--ease-out) forwards;
+      }
+
+      @keyframes smoothLoad {
+        to {
+          opacity: 1;
+        }
+      }
+
+      :is(.story-excerpt, button):focus-visible {
+        outline: 2px solid var(--brand-red);
+        outline-offset: 4px;
+        border-radius: 8px;
+      }
+      .player-fab:focus-visible,
+      .reaction-option-btn:focus-visible {
+        border-radius: 50%;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+
+      /* ================= LAYOUT UTAMA ================= */
+      .layout-wrapper {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100dvh;
+        width: 100vw;
+        touch-action: pan-y;
+        pointer-events: none;
+      }
+      .layout-wrapper.is-ready {
+        pointer-events: auto;
+      }
+
+      .desktop-slider {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100dvh;
+        width: 100%;
+        transition: padding 0.7s var(--ease-spring);
+      }
+      .story-group-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100dvh;
+        width: 100%;
+        transition: transform 0.6s var(--ease-spring);
+      }
+
+      .story-container {
+        position: relative;
+        height: 100dvh;
+        width: 100%;
+        max-width: calc(100dvh * 9 / 16);
+        min-width: 320px;
+        background: var(--brand-dark);
+        overflow: hidden;
+        z-index: 10;
+        border-radius: var(--frame-radius);
+        transition:
+          border-radius 0.6s var(--ease-out),
+          box-shadow 0.6s var(--ease-out);
+        transform: translateZ(0);
+      }
+
+      /* ================= LAYER MEDIA & AMBIENT ================= */
+      .ambient-layer {
+        display: none;
+        position: absolute;
+        top: 5%;
+        left: 0;
+        right: 0;
+        margin: 0 auto;
+        width: 110%;
+        height: 90%;
+        z-index: 1;
+        filter: blur(50px) saturate(150%);
+        opacity: 0.4;
+        pointer-events: none;
+        transition: opacity 0.8s ease;
+        transform: scale(1.05);
+      }
+      .story-container.is-focused .ambient-layer {
+        opacity: 0.25;
+      }
+
+      .media-container iframe,
+      .media-container video,
+      .media-container img {
+        width: 100%;
+        height: 100%;
+        border: none;
+        pointer-events: none;
+      }
+
+      #ambientMediaContainer {
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        transition: opacity 1s var(--ease-out);
+      }
+
+      .story-viewport {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        overflow: hidden;
+        border-radius: inherit;
+        transition:
+          filter 0.6s var(--ease-out),
+          transform 0.6s var(--ease-out);
+        will-change: filter, transform;
+      }
+
+      .story-video-wrapper {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--brand-dark);
+        transition: filter 0.5s var(--ease-out);
+      }
+      .story-container.is-paused .story-video-wrapper {
+        filter: brightness(0.65) grayscale(0.2);
+      }
+      .story-video-wrapper::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 5;
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0.25) 0%,
+          transparent 20%,
+          transparent 65%,
+          rgba(0, 0, 0, 0.85) 100%
+        );
+        transition: opacity 0.4s var(--ease-out);
+      }
+
+      .video-blur-bg {
+        position: absolute;
+        inset: -10%;
+        width: 120%;
+        height: 120%;
+        background-size: cover;
+        background-position: center;
+        filter: blur(25px) brightness(0.4);
+        z-index: 1;
+        opacity: 0;
+        transition:
+          opacity 0.5s ease,
+          background-image 0.5s ease;
+        pointer-events: none;
+      }
+
+      .thumbnail-overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 8;
+        opacity: 1;
+        pointer-events: none;
+        background: transparent;
+        transition: opacity 0.4s ease;
+        border: none;
+        outline: none;
+        display: block;
+        color: transparent;
+      }
+
+      #mainMediaContainer {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.4s var(--ease-out);
+      }
+
+      /* --- Breathing Animations --- */
+      @keyframes ambientBreathe {
+        0% {
+          transform: scale(1.05);
+        }
+        50% {
+          transform: scale(1.15);
+          filter: blur(60px) saturate(180%);
+          opacity: 0.6;
+        }
+        100% {
+          transform: scale(1.05);
+        }
+      }
+      @keyframes innerBreathe {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+          filter: blur(30px) brightness(0.5);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .is-breathing {
+        animation: ambientBreathe 8s ease-in-out infinite !important;
+      }
+      .is-inner-breathing {
+        animation: innerBreathe 8s ease-in-out infinite !important;
+      }
+
+      /* ================= LOADER ================= */
+      .story-loader {
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.5);
+        opacity: 1;
+        pointer-events: auto;
+        transition: opacity 0.3s var(--ease-out);
+      }
+      .story-container.has-started .story-loader {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .story-container.has-started.is-loading .story-loader {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .story-loader__spinner-complex {
+        display: none;
+      }
+      .story-loader__spinner-simple {
+        box-sizing: border-box;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        border-top-color: var(--brand-red);
+        animation: story-spin-simple 0.8s linear infinite;
+      }
+      @keyframes story-spin-simple {
+        to {
+          transform: rotate(1turn);
+        }
+      }
+
+      @media (min-width: 768px) {
+        .story-loader__spinner-simple {
+          display: none;
+        }
+        .story-loader__spinner-complex {
+          display: block;
+          width: 64px;
+          height: 64px;
+          position: relative;
+          pointer-events: none;
+        }
+        .story-loader__container {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          animation: story-spin-linear 1.568s linear infinite;
+        }
+        .story-loader__rotator {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          animation: story-spin-ease 5332ms cubic-bezier(0.4, 0, 0.2, 1) infinite both;
+        }
+        .story-loader__left,
+        .story-loader__right {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          overflow: hidden;
+        }
+        .story-loader__left {
+          left: 0;
+          right: 49%;
+        }
+        .story-loader__right {
+          left: 49%;
+          right: 0;
+        }
+        .story-loader__circle {
+          box-sizing: border-box;
+          position: absolute;
+          width: 200%;
+          height: 100%;
+          border-style: solid;
+          border-color: var(--brand-red) var(--brand-red) transparent;
+          border-radius: 50%;
+          border-width: 6px;
+        }
+        .story-loader__left .story-loader__circle {
+          left: 0;
+          right: -100%;
+          border-right-color: transparent;
+          animation: story-spin-left 1333ms cubic-bezier(0.4, 0, 0.2, 1) infinite both;
+        }
+        .story-loader__right .story-loader__circle {
+          left: -100%;
+          right: 0;
+          border-left-color: transparent;
+          animation: story-spin-right 1333ms cubic-bezier(0.4, 0, 0.2, 1) infinite both;
+        }
+      }
+      @keyframes story-spin-linear {
+        to {
+          transform: rotate(1turn);
+        }
+      }
+      @keyframes story-spin-ease {
+        12.5% {
+          transform: rotate(135deg);
+        }
+        25% {
+          transform: rotate(270deg);
+        }
+        37.5% {
+          transform: rotate(405deg);
+        }
+        50% {
+          transform: rotate(540deg);
+        }
+        62.5% {
+          transform: rotate(675deg);
+        }
+        75% {
+          transform: rotate(810deg);
+        }
+        87.5% {
+          transform: rotate(945deg);
+        }
+        to {
+          transform: rotate(3turn);
+        }
+      }
+      @keyframes story-spin-left {
+        from {
+          transform: rotate(130deg);
+        }
+        50% {
+          transform: rotate(-5deg);
+        }
+        to {
+          transform: rotate(130deg);
+        }
+      }
+      @keyframes story-spin-right {
+        from {
+          transform: rotate(-130deg);
+        }
+        50% {
+          transform: rotate(5deg);
+        }
+        to {
+          transform: rotate(-130deg);
+        }
+      }
+
+      /* ================= PEEK FRAMES ================= */
+      .story-peek {
+        display: none;
+      }
+      @media (min-width: 768px) {
+        .story-peek {
+          display: block;
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          background-color: #111111;
+          border-radius: var(--frame-radius);
+          z-index: 5;
+          opacity: 0;
+          visibility: hidden;
+          overflow: hidden;
+          filter: brightness(0.4);
+          transition:
+            transform 0.6s var(--ease-spring),
+            opacity 0.6s var(--ease-spring),
+            filter 0.3s ease;
+          cursor: pointer;
+        }
+        .story-peek:hover {
+          opacity: 1 !important;
+          filter: brightness(0.6);
+        }
+        .story-peek::before {
+          content: '';
+          position: absolute;
+          inset: -10%;
+          width: 120%;
+          height: 120%;
+          background-image: var(--peek-img, none);
+          background-size: cover;
+          background-position: center;
+          filter: blur(25px) brightness(0.4);
+          opacity: var(--peek-blur, 0);
+          z-index: 1;
+          pointer-events: none;
+        }
+        .story-peek::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background-image: var(--peek-img, none);
+          background-size: var(--peek-fit, cover);
+          background-position: center;
+          background-repeat: no-repeat;
+          z-index: 2;
+          pointer-events: none;
+        }
+        .story-group-wrapper.has-prev .story-peek--prev {
+          visibility: visible;
+          opacity: 1;
+          transform: translateY(calc(-100% - 24px));
+        }
+        .story-group-wrapper.has-next .story-peek--next {
+          visibility: visible;
+          opacity: 1;
+          transform: translateY(calc(100% + 24px));
+        }
+      }
+
+      /* ================= LAYER EFEK & GESTURE ================= */
+      #reaction-container {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 15;
+        overflow: hidden;
+        contain: strict;
+      }
+      .particle {
+        position: absolute;
+        top: -10%;
+        left: var(--x);
+        font-size: var(--size);
+        opacity: 0;
+        animation: drop-physics var(--duration) ease-in forwards;
+        animation-delay: var(--delay);
+        filter: blur(var(--blur)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+        z-index: var(--z);
+        will-change: transform, opacity;
+      }
+      @keyframes drop-physics {
+        0% {
+          transform: translate3d(0, 0, 0) rotate(0deg);
+          opacity: 0;
+        }
+        10%,
+        80% {
+          opacity: 1;
+        }
+        100% {
+          transform: translate3d(var(--drift), 120vh, 0) rotate(var(--rotation));
+          opacity: 0;
+        }
+      }
+
+      .story-center-play {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(1.5);
+        font-size: 80px;
+        z-index: 15;
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.4s ease-out,
+          transform 0.4s ease-out;
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+        will-change: transform, opacity;
+      }
+      :is(.story-center-play.is-flashing, .story-center-play.is-steady) {
+        opacity: 0.9;
+        transform: translate(-50%, -50%) scale(1);
+        transition:
+          opacity 0.1s ease-in,
+          transform 0.2s var(--ease-spring);
+      }
+
+      .story-gesture-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        cursor: pointer;
+        touch-action: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
+      .gesture-zone {
+        height: 100%;
+      }
+      .gesture-zone--left,
+      .gesture-zone--right {
+        width: 30%;
+      }
+      .gesture-zone--center {
+        width: 40%;
+      }
+
+      /* ================= PROGRESS BAR & FLOATING UI ================= */
+      .story-progress-bar-wrapper {
+        position: absolute;
+        bottom: max(16px, env(safe-area-inset-bottom));
+        left: 16px;
+        right: 16px;
+        height: 24px;
+        z-index: 30;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        opacity: 0;
+        transition: opacity 0.8s var(--ease-out);
+      }
+      .story-progress-bar {
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.25);
+        border-radius: 4px;
+        overflow: hidden;
+        transition: height 0.2s var(--ease-out);
+      }
+      .story-progress-bar-wrapper:hover .story-progress-bar {
+        height: 8px;
+      }
+      .story-progress-bar__fill {
+        height: 100%;
+        width: 100%;
+        background: rgba(255, 255, 255, 0.95);
+        transform-origin: left;
+        transform: scaleX(0);
+        border-radius: inherit;
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+        will-change: transform;
+      }
+
+      :is(.story-top-actions, .story-player-actions) {
+        position: absolute;
+        z-index: 40;
+        display: flex;
+        gap: 12px;
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.8s var(--ease-out),
+          transform 0.8s var(--ease-spring);
+      }
+      .story-top-actions {
+        top: max(16px, env(safe-area-inset-top));
+        left: 16px;
+        transform: translateY(-20px);
+      }
+      .story-player-actions {
+        bottom: max(48px, env(safe-area-inset-bottom));
+        right: 16px;
+        flex-direction: column;
+        align-items: center;
+        transform: translateY(20px);
+      }
+
+      .story-excerpt {
+        position: absolute;
+        bottom: max(48px, env(safe-area-inset-bottom));
+        left: 20px;
+        right: 20px;
+        padding-right: 70px;
+        z-index: 40;
+        color: #fff;
+        cursor: pointer;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(20px);
+        transition:
+          opacity 0.8s var(--ease-out),
+          transform 0.8s var(--ease-spring);
+        background: transparent;
+        border: none;
+        text-align: left;
+        font-family: inherit;
+        display: block;
+      }
+
+      :is(.story-excerpt__badges, .story-view__badges) {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .story-badge-item {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+        backdrop-filter: blur(12px);
+        border: 0.5px solid var(--glass-border);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 6px 12px;
+        border-radius: 8px;
+        display: inline-block;
+      }
+      .story-view__badges .story-badge-item {
+        background: var(--brand-red);
+        border: none;
+      }
+
+      .story-excerpt__title {
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 8px;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+        line-height: 1.2;
+      }
+      .story-excerpt__text {
+        font-size: 14px;
+        line-height: 1.5;
+        opacity: 0.9;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+      }
+      .story-read-more {
+        opacity: 0.6;
+        font-weight: 600;
+        margin-left: 4px;
+      }
+
+      :is(.player-fab, .reaction-option-btn, .external-nav-btn) {
+        width: var(--fab-size);
+        height: var(--fab-size);
+        border-radius: 50%;
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border);
+        color: #fff;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      :is(.player-fab, .reaction-option-btn, .external-nav-btn):active:not(.is-disabled) {
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        transform: scale(0.9);
+      }
+      .external-nav-btn.is-disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+
+      /* ================= REACTIONS ================= */
+      .reaction-wrapper {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .reaction-options {
+        position: absolute;
+        bottom: 100%;
+        right: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        pointer-events: none;
+        padding-bottom: 12px;
+      }
+      .reaction-wrapper.is-active .reaction-options {
+        pointer-events: auto;
+      }
+      .reaction-option-btn {
+        font-size: 20px;
+        opacity: 0;
+        transform: translateY(20px) scale(0.6);
+        transition: all 0.4s var(--ease-spring);
+      }
+      .reaction-wrapper.is-active .reaction-option-btn {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        margin-bottom: 10px;
+      }
+      .reaction-wrapper.is-active .player-fab {
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--brand-dark);
+      }
+      .reaction-option-btn:nth-child(1) {
+        transition-delay: 0s;
+      }
+      .reaction-option-btn:nth-child(2) {
+        transition-delay: 0.04s;
+      }
+      .reaction-option-btn:nth-child(3) {
+        transition-delay: 0.08s;
+      }
+      .reaction-option-btn:nth-child(4) {
+        transition-delay: 0.12s;
+      }
+      .reaction-wrapper.is-active .reaction-option-btn:nth-child(4) {
+        transition-delay: 0s;
+      }
+      .reaction-wrapper.is-active .reaction-option-btn:nth-child(3) {
+        transition-delay: 0.05s;
+      }
+      .reaction-wrapper.is-active .reaction-option-btn:nth-child(2) {
+        transition-delay: 0.1s;
+      }
+      .reaction-wrapper.is-active .reaction-option-btn:nth-child(1) {
+        transition-delay: 0.15s;
+      }
+
+      .story-container.show-ui
+        :is(.story-excerpt, .story-player-actions, .story-progress-bar-wrapper, .story-top-actions) {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+      }
+
+      /* ================= DESKTOP CONTROLS & NAVIGATION ================= */
+      .desktop-controls-wrapper {
+        position: fixed;
+        right: 16px;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none;
+        z-index: 60;
+        opacity: 1;
+        transition: opacity 0.8s var(--ease-out);
+      }
+      .desktop-controls-wrapper > * {
+        pointer-events: auto;
+      }
+      .story-close-player {
+        position: fixed;
+        top: max(16px, env(safe-area-inset-top));
+        right: 16px;
+      }
+      .external-nav-group {
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      /* ================= CLEAN MODE ================= */
+      .layout-wrapper.is-clean-mode :is(.reaction-wrapper, .share-fab, .story-excerpt, .story-top-actions) {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
+      }
+      .layout-wrapper.is-clean-mode .story-top-actions {
+        transform: translateY(-20px) !important;
+      }
+      .layout-wrapper.is-clean-mode .story-video-wrapper::after {
+        opacity: 0 !important;
+        visibility: hidden !important;
+      }
+      .layout-wrapper.is-clean-mode #icon-enter-fs {
+        display: none !important;
+      }
+      .layout-wrapper.is-clean-mode #icon-exit-fs {
+        display: block !important;
+      }
+
+      /* ================= POPUP, SHEET & CARD ================= */
+      .story-card {
+        display: none;
+        width: var(--card-width);
+        max-height: calc(100dvh - 80px);
+        background: var(--surface);
+        border-radius: var(--frame-radius);
+        padding: 24px 0 0;
+        z-index: 100;
+        position: relative;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 32px 72px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .overlay-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        opacity: 0;
+        transition: opacity 0.5s;
+        pointer-events: auto;
+        touch-action: none;
+      }
+      .is-active .overlay-backdrop {
+        opacity: 1;
+      }
+      :is(.story-sheet, .story-popup) {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .story-sheet {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+      }
+      .story-popup {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      :is(.story-sheet, .story-popup).is-active {
+        visibility: visible;
+      }
+      :is(.story-sheet__content, .story-popup__content) {
+        position: relative;
+        background: var(--surface);
+        z-index: 101;
+        pointer-events: auto;
+        display: flex;
+        flex-direction: column;
+      }
+      .story-sheet__content {
+        border-radius: 28px 28px 0 0;
+        width: 100%;
+        padding: 12px 0 0;
+        transform: translateY(100%);
+        max-height: 88vh;
+        transition: transform 0.6s var(--ease-spring);
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2);
+        will-change: transform;
+      }
+      .story-sheet.is-active .story-sheet__content {
+        transform: translateY(0);
+      }
+      .story-sheet__content.is-dragging {
+        transition: transform 0.1s ease-out;
+      }
+      .story-sheet__handle-wrapper {
+        width: 100%;
+        padding: 10px 0 24px;
+        cursor: grab;
+        display: flex;
+        justify-content: center;
+        flex-shrink: 0;
+        touch-action: none;
+      }
+      .story-sheet__handle {
+        width: 44px;
+        height: 5px;
+        background: #d1d1d6;
+        border-radius: 10px;
+      }
+      .story-popup__content {
+        width: var(--card-width);
+        padding: 24px 0;
+        opacity: 0;
+        transform: translateY(40px);
+        max-height: calc(100dvh - 64px);
+        border-radius: var(--frame-radius);
+        transition:
+          transform 0.6s var(--ease-spring),
+          opacity 0.6s var(--ease-spring);
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+      }
+      .story-popup.is-active .story-popup__content {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .story-close-btn {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: var(--bg-gray);
+        border-radius: 50%;
+        font-size: 14px;
+        font-weight: bold;
+        color: var(--text-sub);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s;
+        z-index: 30;
+      }
+
+      :is(.story-dynamic-area, .story-view) {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex: 1 1 auto;
+      }
+      .story-header {
+        flex-shrink: 0;
+        padding: 0 64px 0 28px;
+        margin-bottom: 16px;
+      }
+      .story-view__title {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--text-main);
+        margin-bottom: 6px;
+        line-height: 1.25;
+        outline: none;
+      }
+      .story-view__meta {
+        font-size: 13px;
+        font-weight: 500;
+        color: #888;
+        display: block;
+      }
+      .story-body {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 0 28px 32px;
+        min-height: 0;
+        overscroll-behavior-y: contain;
+      }
+      .story-body::-webkit-scrollbar {
+        width: 5px;
+      }
+      .story-body::-webkit-scrollbar-thumb {
+        background: #d1d1d6;
+        border-radius: 10px;
+      }
+      .story-body::-webkit-scrollbar-track {
+        background: transparent;
+        margin: 8px 0;
+      }
+      .story-body__cms-content {
+        font-size: 15px;
+        color: var(--text-sub);
+        line-height: 1.6;
+      }
+      .story-body__cms-content p {
+        margin-bottom: 16px;
+      }
+
+      /* ================= RESPONSIVE ================= */
+      @media (hover: hover) and (pointer: fine) {
+        .story-container.show-ui .story-excerpt:hover {
+          opacity: 0.9;
+        }
+        :is(.player-fab, .reaction-option-btn, .external-nav-btn:not(.is-disabled)):hover {
+          background: rgba(255, 255, 255, 0.25);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+        .story-close-btn:hover {
+          background: #e9ecef;
+          color: var(--text-main);
+        }
+      }
+
+      @media (max-width: 767px) {
+        :is(.story-container, .story-viewport) {
+          border-radius: 0 !important;
+        }
+        .story-popup {
+          display: none !important;
+        }
+        .story-group-wrapper {
+          width: 100%;
+        }
+        .story-header {
+          padding: 0 28px;
+        }
+        .layout-wrapper.is-ui-open .story-viewport {
+          filter: blur(12px) brightness(0.5);
+          transform: scale(0.97);
+          border-radius: var(--frame-radius) !important;
+        }
+        .layout-wrapper.is-ui-open .story-viewport :is(.story-excerpt, .story-player-actions, .story-top-actions) {
+          opacity: 0;
+          pointer-events: none;
+        }
+        .layout-wrapper.is-ui-open .story-close-player {
+          opacity: 0;
+          pointer-events: none;
+        }
+        .layout-wrapper.is-clean-mode .story-close-player {
+          opacity: 0 !important;
+          pointer-events: none !important;
+          visibility: hidden !important;
+        }
+      }
+
+      @media (min-width: 768px) {
+        .story-sheet {
+          display: none !important;
+        }
+        .ambient-layer {
+          display: block;
+        }
+        .story-container {
+          width: auto;
+          height: 100%;
+          aspect-ratio: 9/16;
+          overflow: visible;
+          box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+        }
+        .external-nav-group {
+          display: flex;
+          margin: auto 0;
+        }
+        @media (max-width: 1365px) {
+          .story-group-wrapper {
+            height: calc(100dvh - 64px);
+            width: auto;
+          }
+          .desktop-controls-wrapper {
+            right: 32px;
+          }
+          .story-close-player {
+            position: relative;
+            top: max(24px, env(safe-area-inset-top));
+            right: auto;
+          }
+          .layout-wrapper.is-ui-open .desktop-controls-wrapper {
+            opacity: 0;
+            pointer-events: none;
+          }
+          .layout-wrapper.is-ui-open .story-viewport {
+            filter: blur(12px) brightness(0.6);
+            transform: scale(0.97);
+          }
+          .layout-wrapper.is-ui-open .story-viewport :is(.story-excerpt, .story-player-actions, .story-top-actions) {
+            opacity: 0;
+            pointer-events: none;
+          }
+        }
+      }
+
+      @media (min-width: 1366px) {
+        .story-popup {
+          display: none !important;
+        }
+        .ambient-layer {
+          opacity: 0.6;
+        }
+        .story-group-wrapper {
+          width: max-content;
+          height: calc(100dvh - 80px);
+          position: relative;
+          margin: 0 auto;
+        }
+        .story-container {
+          z-index: 10;
+        }
+        .layout-wrapper.is-ui-open .story-group-wrapper {
+          transform: translateX(calc((var(--card-width) + 16px) / -2));
+        }
+        .story-card {
+          display: flex;
+          position: fixed;
+          left: calc(50% + (100dvh * 9 / 32) + 24px);
+          top: 50%;
+          transform: translateY(-50%) translateX(100px);
+          margin: 0;
+          opacity: 0;
+          pointer-events: none;
+          transition: all 0.6s var(--ease-spring);
+          z-index: 100;
+        }
+        .layout-wrapper.is-ui-open .story-card {
+          opacity: 1;
+          pointer-events: auto;
+          transform: translateY(-50%) translateX(calc((var(--card-width) + 24px) / -2));
+        }
+        .desktop-controls-wrapper {
+          right: 40px;
+        }
+        .story-close-player {
+          position: relative;
+          top: max(32px, env(safe-area-inset-top));
+          right: auto;
+        }
+        .layout-wrapper.is-ui-open .desktop-controls-wrapper,
+        .layout-wrapper.is-ui-open .story-container.show-ui .story-player-actions,
+        .layout-wrapper.is-ui-open .story-container.show-ui .story-top-actions {
+          opacity: 1;
+          pointer-events: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="a11yAnnouncer" class="sr-only" aria-live="polite"></div>
+
+    <div class="layout-wrapper" id="layoutWrapper" tabindex="-1">
+      <div class="desktop-slider">
+        <div class="story-group-wrapper" id="storyGroupWrapper">
+          <div class="story-peek story-peek--prev" id="peekPrev" aria-label="Video Sebelumnya"></div>
+
+          <div class="story-container" id="storyContainer">
+            <div class="ambient-layer" id="ambientContainer">
+              <div id="ambientMediaContainer" class="media-container"></div>
+            </div>
+
+            <div class="story-viewport">
+              <div class="story-loader">
+                <div class="story-loader__spinner-simple"></div>
+                <div class="story-loader__spinner-complex">
+                  <div class="story-loader__container">
+                    <div class="story-loader__rotator">
+                      <div class="story-loader__left"><div class="story-loader__circle"></div></div>
+                      <div class="story-loader__right"><div class="story-loader__circle"></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="story-video-wrapper">
+                <div id="videoBlurBg" class="video-blur-bg"></div>
+                <img
+                  id="thumbnailOverlay"
+                  class="thumbnail-overlay"
+                  alt=""
+                  aria-hidden="true"
+                  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"
+                />
+                <div id="mainMediaContainer" class="media-container"></div>
+              </div>
+
+              <div id="reaction-container"></div>
+              <div class="story-center-play" id="centerPlayIndicator" aria-hidden="true">▶️</div>
+
+              <div class="story-gesture-layer" id="storyGestureLayer">
+                <div class="gesture-zone gesture-zone--left" data-action="rewind"></div>
+                <div class="gesture-zone gesture-zone--center" data-action="playpause"></div>
+                <div class="gesture-zone gesture-zone--right" data-action="forward"></div>
+              </div>
+
+              <div class="story-progress-bar-wrapper" id="storyProgressBarWrapper" aria-label="Progress Video">
+                <div class="story-progress-bar">
+                  <div class="story-progress-bar__fill" id="storyProgressFill"></div>
+                </div>
+              </div>
+
+              <div class="story-top-actions">
+                <button class="player-fab" id="btnPlayPause" aria-label="Pause Video">⏸️</button>
+                <button class="player-fab" id="btnMute" aria-label="Unmute Audio">🔇</button>
+              </div>
+
+              <button class="story-excerpt" id="btnOpenContext" aria-label="Buka Detail Video">
+                <div class="story-excerpt__badges"></div>
+                <h2 class="story-excerpt__title">Judul Video</h2>
+                <div class="story-excerpt__text">Deskripsi singkat video...</div>
+              </button>
+
+              <div class="story-player-actions">
+                <div class="reaction-wrapper" id="reactionWrapper">
+                  <div class="reaction-options">
+                    <button class="reaction-option-btn" aria-label="Beri reaksi Hati" data-reaction="❤️">❤️</button>
+                    <button class="reaction-option-btn" aria-label="Beri reaksi Api" data-reaction="🔥">🔥</button>
+                    <button class="reaction-option-btn" aria-label="Beri reaksi Tertawa" data-reaction="🤣">🤣</button>
+                    <button class="reaction-option-btn" aria-label="Beri reaksi Tepuk Tangan" data-reaction="👏🏻">
+                      👏🏻
+                    </button>
+                    <button class="reaction-option-btn" aria-label="Beri reaksi Menangis" data-reaction="😭">😭</button>
+                  </div>
+                  <button class="player-fab" id="btnToggleReaction" aria-label="Pilih Reaksi" aria-expanded="false">
+                    🤍
+                  </button>
+                </div>
+                <button class="player-fab share-fab" id="btnShare" aria-label="Bagikan Tautan">🔗</button>
+                <button class="player-fab fullscreen-fab" id="btnCleanMode" aria-label="Mode Bersih">
+                  <span id="icon-enter-fs">🔲</span><span id="icon-exit-fs" style="display: none">✖️</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="story-peek story-peek--next" id="peekNext" aria-label="Video Selanjutnya"></div>
+        </div>
+
+        <div class="story-card" id="storyCardDashboard">
+          <button class="story-close-btn" aria-label="Tutup Detail">✖️</button>
+          <div class="story-dynamic-area"></div>
+        </div>
+
+        <div class="desktop-controls-wrapper">
+          <button class="player-fab story-close-player" id="btnStoryClosePlayer" aria-label="Tutup Story">✖️</button>
+          <div class="external-nav-group">
+            <button id="btnPrevStory" class="external-nav-btn" aria-label="Video Sebelumnya">🔼</button>
+            <button id="btnNextStory" class="external-nav-btn" aria-label="Video Selanjutnya">🔽</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="story-sheet" id="storySheet" aria-modal="true" role="dialog">
+        <div class="story-sheet__backdrop overlay-backdrop"></div>
+        <div class="story-sheet__content">
+          <div class="story-sheet__handle-wrapper" id="storySheetHandle"><div class="story-sheet__handle"></div></div>
+          <div class="story-dynamic-area"></div>
+        </div>
+      </div>
+
+      <div class="story-popup" id="storyPopup" aria-modal="true" role="dialog">
+        <div class="story-popup__backdrop overlay-backdrop"></div>
+        <div class="story-popup__content">
+          <button class="story-close-btn" aria-label="Tutup Detail">✖️</button>
+          <div class="story-dynamic-area"></div>
+        </div>
+      </div>
+    </div>
+
+    <template id="storyContentTemplate">
+      <div class="story-view is-active">
+        <div class="story-header">
+          <div class="story-view__badges"></div>
+          <h3 class="story-view__title" tabindex="-1">Judul</h3>
+          <span class="story-view__meta" id="storyMeta">Informasi • Meta</span>
+        </div>
+        <div class="story-body" tabindex="0">
+          <div class="story-body__cms-content"></div>
+        </div>
+      </div>
+    </template>
+
+    <script>
+      // ================= GLOBAL & UNIVERSAL STATE =================
+      let isGlobalMuted = true;
+      let crossfadeTimer = null;
+
+      const MEDIA_STATE = {
+        UNSTARTED: -1,
+        ENDED: 0,
+        PLAYING: 1,
+        PAUSED: 2,
+        BUFFERING: 3,
+      };
+
+      // ================= YOUTUBE URL PARSER =================
+      const parseYouTubeData = (url) => {
+        let videoId = '';
+        let isShort = false;
+        if (url.includes('/shorts/')) {
+          isShort = true;
+          videoId = url.substring(url.indexOf('/shorts/') + 8).split('?')[0];
+        } else {
+          const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+          const match = url.match(regExp);
+          if (match && match[2].length === 11) videoId = match[2];
+        }
+        return { videoId, isShort };
+      };
+
+      // ================= SUPER THUMBNAIL RESOLVER =================
+      const ThumbnailResolver = {
+        cache: new Map(),
+        resolve: function (data, callback) {
+          if (!data) return callback(null);
+
+          let cacheKey = data.url;
+          if (data.type === 'youtube') cacheKey = parseYouTubeData(data.url).videoId;
+
+          if (this.cache.has(cacheKey)) {
+            const cached = this.cache.get(cacheKey);
+            if (cached !== 'loading') return callback(cached);
+          }
+
+          this.cache.set(cacheKey, 'loading');
+
+          const saveAndCall = (resultUrl) => {
+            this.cache.set(cacheKey, resultUrl);
+            callback(resultUrl);
+          };
+
+          if (data.type === 'youtube') {
+            const videoId = cacheKey;
+            const maxResUrl = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+            const hqResUrl = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+            const img = new Image();
+            img.onload = () => {
+              let finalUrl = img.src;
+              if (img.naturalWidth <= 120 && img.src.includes('maxresdefault')) finalUrl = hqResUrl;
+              saveAndCall(finalUrl);
+            };
+            img.onerror = () => saveAndCall(hqResUrl);
+            img.src = maxResUrl;
+          } else if (data.type === 'video') {
+            if (data.thumbnail) return saveAndCall(data.thumbnail);
+
+            const video = document.createElement('video');
+            video.crossOrigin = 'anonymous';
+            video.muted = true;
+            video.playsInline = true;
+            video.src = data.url;
+
+            video.onloadedmetadata = () => {
+              video.currentTime = Math.min(1, video.duration / 2 || 1);
+            };
+            video.onseeked = () => {
+              try {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 360;
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                saveAndCall(canvas.toDataURL('image/jpeg', 0.8));
+              } catch (e) {
+                saveAndCall(null);
+              }
+            };
+            video.onerror = () => saveAndCall(null);
+          } else {
+            saveAndCall(data.thumbnail || data.url);
+          }
+        },
+      };
+
+      // ================= MEDIA ADAPTER PATTERN CLASSES =================
+      class BaseMediaHandler {
+        constructor(container, data, callbacks, isAmbient = false) {
+          this.container = container;
+          this.data = data;
+          this.callbacks = callbacks || {};
+          this.isAmbient = isAmbient;
+        }
+        load() {}
+        play() {}
+        pause() {}
+        mute() {}
+        unMute() {}
+        seek(offset) {
+          this.seekTo(this.getCurrentTime() + offset);
+        }
+        seekTo(time) {}
+        getCurrentTime() {
+          return 0;
+        }
+        getDuration() {
+          return 0;
+        }
+        setPlaybackRate(rate) {}
+        isMuted() {
+          return true;
+        }
+        getState() {
+          return MEDIA_STATE.UNSTARTED;
+        }
+        destroy() {
+          this.container.innerHTML = '';
+        }
+        emitStateChange(state) {
+          if (this.callbacks.onStateChange) this.callbacks.onStateChange(state);
+        }
+      }
+
+      class YouTubeHandler extends BaseMediaHandler {
+        load() {
+          const div = document.createElement('div');
+          this.container.appendChild(div);
+          const { videoId, isShort } = parseYouTubeData(this.data.url);
+
+          this.player = new YT.Player(div, {
+            videoId: videoId,
+            playerVars: {
+              autoplay: 1,
+              controls: 0,
+              loop: 0,
+              mute: 1,
+              modestbranding: 1,
+              iv_load_policy: 3,
+              rel: 0,
+              playsinline: 1,
+            },
+            events: {
+              onReady: (e) => {
+                if (isGlobalMuted) {
+                  e.target.mute();
+                } else {
+                  e.target.unMute();
+                }
+                const iframe = e.target.getIframe();
+                const forceCover = isShort || this.data.isVertical;
+                if (iframe) iframe.style.objectFit = forceCover ? 'cover' : 'contain'; // Pakai untuk utama & ambient
+                if (this.callbacks.onReady) this.callbacks.onReady(e);
+              },
+              onStateChange: (e) => {
+                let universalState = MEDIA_STATE.UNSTARTED;
+                switch (e.data) {
+                  case YT.PlayerState.PLAYING:
+                    universalState = MEDIA_STATE.PLAYING;
+                    break;
+                  case YT.PlayerState.PAUSED:
+                    universalState = MEDIA_STATE.PAUSED;
+                    break;
+                  case YT.PlayerState.BUFFERING:
+                    universalState = MEDIA_STATE.BUFFERING;
+                    break;
+                  case YT.PlayerState.ENDED:
+                    universalState = MEDIA_STATE.ENDED;
+                    break;
+                }
+                this.emitStateChange(universalState);
+              },
+            },
+          });
+        }
+        play() {
+          this.player?.playVideo?.();
+        }
+        pause() {
+          this.player?.pauseVideo?.();
+        }
+        mute() {
+          this.player?.mute?.();
+        }
+        unMute() {
+          this.player?.unMute?.();
+        }
+        seekTo(time) {
+          this.player?.seekTo?.(time, true);
+        }
+        getCurrentTime() {
+          return this.player?.getCurrentTime?.() || 0;
+        }
+        getDuration() {
+          return this.player?.getDuration?.() || 0;
+        }
+        setPlaybackRate(rate) {
+          this.player?.setPlaybackRate?.(rate);
+        }
+        isMuted() {
+          return this.player?.isMuted?.();
+        }
+        getState() {
+          const ytState = this.player?.getPlayerState?.();
+          switch (ytState) {
+            case YT.PlayerState.PLAYING:
+              return MEDIA_STATE.PLAYING;
+            case YT.PlayerState.PAUSED:
+              return MEDIA_STATE.PAUSED;
+            case YT.PlayerState.BUFFERING:
+              return MEDIA_STATE.BUFFERING;
+            case YT.PlayerState.ENDED:
+              return MEDIA_STATE.ENDED;
+            default:
+              return MEDIA_STATE.UNSTARTED;
+          }
+        }
+        destroy() {
+          this.player?.destroy?.();
+          super.destroy();
+        }
+      }
+
+      class ImageHandler extends BaseMediaHandler {
+        constructor(container, data, callbacks, isAmbient = false) {
+          super(container, data, callbacks, isAmbient);
+          this.duration = 5;
+          this.currentTime = 0;
+          this.timer = null;
+          this.lastTick = 0;
+          this.state = MEDIA_STATE.UNSTARTED;
+        }
+
+        load() {
+          this.img = document.createElement('img');
+          const isShort = this.data.isVertical === true;
+          this.img.style.width = '100%';
+          this.img.style.height = '100%';
+          this.img.style.objectFit = isShort ? 'cover' : 'contain'; // Jangan dipaksa cover jika 16:9
+          this.img.style.pointerEvents = 'none';
+
+          this.container.appendChild(this.img);
+
+          const handleLoad = () => {
+            this.state = MEDIA_STATE.PAUSED;
+            if (this.callbacks.onReady) this.callbacks.onReady({ target: this });
+          };
+
+          const handleError = () => {
+            console.warn('Gagal memuat gambar utama:', this.data.url);
+            if (this.data.thumbnail && this.img.src !== this.data.thumbnail) {
+              this.img.src = this.data.thumbnail;
+            } else {
+              this.state = MEDIA_STATE.ENDED;
+              this.emitStateChange(this.state);
+            }
+          };
+
+          this.img.onload = handleLoad;
+          this.img.onerror = handleError;
+          this.img.src = this.data.url;
+
+          if (this.img.complete && this.img.naturalHeight !== 0) {
+            handleLoad();
+          } else if (this.img.complete && this.img.naturalHeight === 0) {
+            handleError();
+          }
+        }
+
+        tick() {
+          if (this.state !== MEDIA_STATE.PLAYING) return;
+          const now = Date.now();
+          const delta = (now - this.lastTick) / 1000;
+          this.currentTime += delta;
+          this.lastTick = now;
+          if (this.currentTime >= this.duration) {
+            this.currentTime = this.duration;
+            this.state = MEDIA_STATE.ENDED;
+            this.emitStateChange(this.state);
+          } else {
+            this.timer = requestAnimationFrame(() => this.tick());
+          }
+        }
+
+        play() {
+          if (this.currentTime >= this.duration) this.currentTime = 0;
+          this.state = MEDIA_STATE.PLAYING;
+          this.lastTick = Date.now();
+          this.emitStateChange(this.state);
+          this.tick();
+        }
+        pause() {
+          this.state = MEDIA_STATE.PAUSED;
+          cancelAnimationFrame(this.timer);
+          this.emitStateChange(this.state);
+        }
+        seekTo(time) {
+          this.currentTime = Math.max(0, Math.min(time, this.duration));
+        }
+        getCurrentTime() {
+          return this.currentTime;
+        }
+        getDuration() {
+          return this.duration;
+        }
+        getState() {
+          return this.state;
+        }
+        destroy() {
+          cancelAnimationFrame(this.timer);
+          super.destroy();
+        }
+      }
+
+      class HTML5VideoHandler extends BaseMediaHandler {
+        load() {
+          this.video = document.createElement('video');
+          this.video.src = this.data.url;
+          this.video.style.width = '100%';
+          this.video.style.height = '100%';
+          const isShort = this.data.isVertical === true;
+          this.video.style.objectFit = isShort ? 'cover' : 'contain'; // Jangan dipaksa cover jika 16:9
+          this.video.playsInline = true;
+          this.video.crossOrigin = 'anonymous';
+          this.video.muted = this.isAmbient || isGlobalMuted;
+
+          this.container.appendChild(this.video);
+
+          this.video.addEventListener('loadedmetadata', () => {
+            if (this.callbacks.onReady) this.callbacks.onReady({ target: this });
+          });
+          this.video.addEventListener('play', () => this.emitStateChange(MEDIA_STATE.PLAYING));
+          this.video.addEventListener('pause', () => this.emitStateChange(MEDIA_STATE.PAUSED));
+          this.video.addEventListener('playing', () => this.emitStateChange(MEDIA_STATE.PLAYING));
+          this.video.addEventListener('waiting', () => this.emitStateChange(MEDIA_STATE.BUFFERING));
+          this.video.addEventListener('ended', () => this.emitStateChange(MEDIA_STATE.ENDED));
+          this.video.addEventListener('error', (e) => console.error('Video Error:', this.video.error));
+        }
+
+        play() {
+          const playPromise = this.video?.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((error) => {
+              console.warn('Autoplay dicegah oleh browser:', error);
+              this.emitStateChange(MEDIA_STATE.PAUSED);
+            });
+          }
+        }
+        pause() {
+          this.video?.pause();
+        }
+        mute() {
+          if (this.video) this.video.muted = true;
+        }
+        unMute() {
+          if (this.video) this.video.muted = false;
+        }
+        seekTo(time) {
+          if (this.video) this.video.currentTime = time;
+        }
+        getCurrentTime() {
+          return this.video?.currentTime || 0;
+        }
+        getDuration() {
+          return this.video?.duration || 0;
+        }
+        setPlaybackRate(rate) {
+          if (this.video) this.video.playbackRate = rate;
+        }
+        isMuted() {
+          return this.video?.muted || false;
+        }
+        getState() {
+          if (!this.video) return MEDIA_STATE.UNSTARTED;
+          if (this.video.ended) return MEDIA_STATE.ENDED;
+          if (this.video.paused) return MEDIA_STATE.PAUSED;
+          if (this.video.readyState < 3) return MEDIA_STATE.BUFFERING;
+          return MEDIA_STATE.PLAYING;
+        }
+        destroy() {
+          if (this.video) {
+            this.video.pause();
+            this.video.removeAttribute('src');
+            this.video.load();
+          }
+          super.destroy();
+        }
+      }
+
+      class MediaFactory {
+        static create(container, data, callbacks, isAmbient = false) {
+          switch (data.type) {
+            case 'youtube':
+              return new YouTubeHandler(container, data, callbacks, isAmbient);
+            case 'image':
+              return new ImageHandler(container, data, callbacks, isAmbient);
+            case 'video':
+              return new HTML5VideoHandler(container, data, callbacks, isAmbient);
+            default:
+              return null;
+          }
+        }
+      }
+
+      // ================= PLAYLIST DATA =================
+      const videoPlaylist = [
+        {
+          type: 'youtube',
+          url: 'https://www.youtube.com/watch?v=lxSM-MYJsA8',
+          categories: ['Match Highlight', 'UCL'],
+          title: 'Highlight Gol Liga Champions! 🔥',
+          meta: 'UEFA Champions League • 2 Jam yang lalu',
+          excerpt: 'Semua gol dari Matchday ke-7 Liga Champions UEFA! Laga penuh aksi, kejutan tak terduga.',
+          content: '<p>Saksikan cuplikan lengkap seluruh gol dari ajang UEFA Champions League Matchday ke-7...</p>',
+        },
+        {
+          type: 'image',
+          url: 'https://images.unsplash.com/photo-1682687220742-aba13b6e50ba?q=80&w=1080&auto=format&fit=crop',
+          thumbnail: 'https://images.unsplash.com/photo-1682687220742-aba13b6e50ba?q=80&w=200&auto=format&fit=crop',
+          isVertical: false,
+          categories: ['Photography', 'Image API'],
+          title: 'Keindahan Alam (Adapter Gambar)',
+          meta: 'Unsplash Image • Baru Saja',
+          excerpt: 'Contoh statis dimainkan bagai video dengan durasi 5 detik.',
+          content: '<p>Adapter untuk image berjalan lancar dengan timer fake di baliknya.</p>',
+        },
+        {
+          type: 'video',
+          url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+          categories: ['Movie Trailer', 'HTML5 Native'],
+          title: 'Trailer Film Animasi (Native MP4) 🎬',
+          meta: 'Google Sample • 5 Menit yang lalu',
+          excerpt: 'Contoh penerapan HTML5 native video adapter yang langsung membaca event DOM.',
+          content: '<p>Video MP4 ini dimainkan secara native melalui tag <code>&lt;video&gt;</code> HTML5.</p>',
+        },
+        {
+          type: 'youtube',
+          url: 'https://www.youtube.com/shorts/Km5xz7NKqlA',
+          categories: ['Tips & Trik', 'Football Skills'],
+          title: 'Trik Ampuh Dribbling Sepak Bola ⚽',
+          meta: 'Football Skills • 5 Jam yang lalu',
+          excerpt: '',
+          content: '<p>Latihan ini berfokus pada penguasaan <i>close control</i>, kecepatan menggiring bola...</p>',
+        },
+      ];
+
+      // ================= APP STATE & UTILS =================
+      let currentMedia = null;
+      let currentAmbient = null;
+      let isApiReady = false;
+      let currentVideoIndex = 0;
+      const urlParams = new URLSearchParams(window.location.search);
+      const videoParam = urlParams.get('v');
+      if (videoParam) {
+        const foundIndex = videoPlaylist.findIndex(
+          (v) => v.type === 'youtube' && parseYouTubeData(v.url).videoId === videoParam,
+        );
+        if (foundIndex > -1) currentVideoIndex = foundIndex;
+      }
+
+      const updateEls = (sel, prop, val) => document.querySelectorAll(sel).forEach((el) => (el[prop] = val));
+      const getEl = (id) => document.getElementById(id);
+
+      // ================= CORE UPDATE UI LOGIC =================
+      const handleMediaStateChange = (state) => {
+        const btn = getEl('btnPlayPause');
+        const container = getEl('storyContainer');
+        const thumbOverlay = getEl('thumbnailOverlay');
+        const mainMediaContainer = getEl('mainMediaContainer');
+        const ambientMediaContainer = getEl('ambientMediaContainer');
+        const blurBg = getEl('videoBlurBg'); // Ambil elemen blur inner background
+
+        if (state === MEDIA_STATE.PLAYING) {
+          mainMediaContainer.style.opacity = '1';
+          if (btn) btn.innerText = '⏸️';
+
+          container?.classList.add('has-started', 'show-ui');
+          container?.classList.remove('is-paused', 'is-loading');
+
+          // Transisi Thumbnail
+          if (thumbOverlay && thumbOverlay.style.display !== 'none') {
+            thumbOverlay.style.transition = 'opacity 0.8s var(--ease-out)';
+            crossfadeTimer = setTimeout(() => {
+              thumbOverlay.style.opacity = '0';
+            }, 150);
+          }
+
+          // [PERBAIKAN] Hilangkan inner blur statis saat video di-play! (kecuali gambar)
+          if (blurBg && currentMedia.data.type !== 'image') {
+            blurBg.style.transition = 'opacity 0.8s var(--ease-out)';
+            blurBg.style.opacity = '0';
+          }
+
+          if (currentAmbient) {
+            currentAmbient.seekTo(currentMedia.getCurrentTime());
+            currentAmbient.play();
+            ambientMediaContainer.style.opacity = '1';
+          }
+          StoryManager.startProgressBar();
+        } else if (state === MEDIA_STATE.PAUSED) {
+          if (!StoryManager.isAnimatingState()) {
+            if (btn) btn.innerText = '▶️';
+            container?.classList.add('is-paused');
+          }
+          StoryManager.stopProgressBar();
+          currentAmbient?.pause();
+        } else if (state === MEDIA_STATE.BUFFERING) {
+          currentAmbient?.pause();
+        } else if (state === MEDIA_STATE.ENDED) {
+          StoryManager.stopProgressBar();
+          currentMedia.seekTo(0);
+          currentMedia.play();
+        }
+      };
+
+      const updateVideoUI = () => {
+        if (!isApiReady) return;
+        const data = videoPlaylist[currentVideoIndex];
+        const progressFill = getEl('storyProgressFill');
+        if (progressFill) progressFill.style.transform = 'scaleX(0)';
+
+        const btnMute = getEl('btnMute');
+        if (btnMute) {
+          btnMute.innerText = isGlobalMuted ? '🔇' : '🔊';
+          btnMute.setAttribute('aria-label', isGlobalMuted ? 'Unmute Audio' : 'Mute Audio');
+        }
+
+        updateEls('.story-excerpt__title, .story-view__title', 'innerText', data.title);
+        updateEls('.story-view__meta', 'innerText', data.meta);
+        updateEls('.story-body__cms-content', 'innerHTML', data.content);
+
+        const a11yAnnouncer = getEl('a11yAnnouncer');
+        if (a11yAnnouncer) a11yAnnouncer.textContent = 'Memutar media: ' + data.title;
+
+        const hasDetailContent = data.content && data.content.trim() !== '';
+        document.querySelectorAll('.story-excerpt__text').forEach((el) => {
+          const rawExcerpt = data.excerpt ? data.excerpt.trim() : '';
+          if (rawExcerpt === '' && hasDetailContent) {
+            el.innerHTML = '<span class="story-read-more" style="margin-left: 0;">See more</span>';
+          } else if (rawExcerpt === '') {
+            el.innerHTML = '';
+          } else {
+            el.innerHTML = rawExcerpt;
+            if (hasDetailContent) {
+              requestAnimationFrame(() => {
+                if (el.scrollHeight <= el.clientHeight && !el.innerHTML.includes('story-read-more')) {
+                  el.innerHTML = rawExcerpt + '<span class="story-read-more"> ...</span>';
+                }
+              });
+            }
+          }
+        });
+
+        document.querySelectorAll('.story-excerpt__badges, .story-view__badges').forEach((container) => {
+          container.innerHTML = '';
+          data.categories?.forEach((category) => {
+            const span = document.createElement('span');
+            span.className = 'story-badge-item';
+            span.innerText = category;
+            container.appendChild(span);
+          });
+        });
+
+        const thumbOverlay = getEl('thumbnailOverlay');
+        const blurBg = getEl('videoBlurBg');
+        const peekPrevEl = getEl('peekPrev');
+        const peekNextEl = getEl('peekNext');
+
+        const isShort = (data.type === 'youtube' && parseYouTubeData(data.url).isShort) || data.isVertical === true;
+        const objectFitStyle = isShort ? 'cover' : 'contain';
+
+        if (thumbOverlay) {
+          thumbOverlay.style.transition = 'none';
+          thumbOverlay.style.opacity = '1';
+        }
+
+        // --- Render Thumbnails & Ambient ---
+        ThumbnailResolver.resolve(data, (url) => {
+          if (!url) return;
+
+          if (blurBg) {
+            blurBg.style.transition = 'none'; // Matikan transisi agar muncul instan
+            blurBg.style.backgroundImage = `url(${url})`;
+            blurBg.style.backgroundSize = 'cover';
+            blurBg.style.opacity = isShort ? '0' : '1';
+            blurBg.classList.toggle('is-inner-breathing', data.type === 'image');
+          }
+
+          if (thumbOverlay) {
+            thumbOverlay.src = url;
+            thumbOverlay.style.objectFit = objectFitStyle;
+            thumbOverlay.style.display = '';
+          }
+
+          const ambientWrapper = getEl('ambientContainer');
+          if (ambientWrapper) {
+            ambientWrapper.style.backgroundImage = `url(${url})`;
+            ambientWrapper.style.backgroundSize = objectFitStyle; // Tetap menyesuaikan bentuk aslinya
+            ambientWrapper.style.backgroundPosition = 'center';
+            ambientWrapper.style.backgroundRepeat = 'no-repeat';
+            ambientWrapper.classList.toggle('is-breathing', data.type === 'image');
+          }
+        });
+
+        ThumbnailResolver.resolve(videoPlaylist[currentVideoIndex - 1], (url) => {
+          if (!peekPrevEl) return;
+          if (url) {
+            const pData = videoPlaylist[currentVideoIndex - 1];
+            const pShort =
+              (pData.type === 'youtube' && parseYouTubeData(pData.url).isShort) || pData.isVertical === true;
+            peekPrevEl.style.setProperty('--peek-img', `url(${url})`);
+            peekPrevEl.style.setProperty('--peek-fit', pShort ? 'cover' : 'contain');
+            peekPrevEl.style.setProperty('--peek-blur', pShort ? '0' : '1');
+          } else peekPrevEl.style.setProperty('--peek-img', 'none');
+        });
+        ThumbnailResolver.resolve(videoPlaylist[currentVideoIndex + 1], (url) => {
+          if (!peekNextEl) return;
+          if (url) {
+            const nData = videoPlaylist[currentVideoIndex + 1];
+            const nShort =
+              (nData.type === 'youtube' && parseYouTubeData(nData.url).isShort) || nData.isVertical === true;
+            peekNextEl.style.setProperty('--peek-img', `url(${url})`);
+            peekNextEl.style.setProperty('--peek-fit', nShort ? 'cover' : 'contain');
+            peekNextEl.style.setProperty('--peek-blur', nShort ? '0' : '1');
+          } else peekNextEl.style.setProperty('--peek-img', 'none');
+        });
+
+        // --- Inisialisasi Media ---
+        if (currentMedia) currentMedia.destroy();
+        if (currentAmbient) currentAmbient.destroy();
+
+        const mainContainer = getEl('mainMediaContainer');
+        const ambientContainer = getEl('ambientMediaContainer');
+
+        mainContainer.style.opacity = '0';
+        ambientContainer.style.opacity = '0';
+
+        currentMedia = MediaFactory.create(
+          mainContainer,
+          data,
+          {
+            onReady: () => {
+              getEl('layoutWrapper').classList.add('is-ready');
+              currentMedia.play();
+            },
+            onStateChange: handleMediaStateChange,
+          },
+          false,
+        );
+
+        if (window.innerWidth >= 768) {
+          currentAmbient = MediaFactory.create(ambientContainer, data, { onReady: () => currentAmbient.play() }, true);
+          currentAmbient.load();
+        }
+
+        currentMedia.load();
+
+        if (data.type === 'youtube') {
+          const id = parseYouTubeData(data.url).videoId;
+          const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?v=${id}`;
+          if (window.location.search !== `?v=${id}`) window.history.pushState({ path: newUrl }, '', newUrl);
+        } else {
+          const base = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
+          window.history.pushState({ path: base }, '', base);
+        }
+
+        StoryManager.startProgressBar();
+        StoryManager.checkNavState();
+      };
+
+      // ================= MANAJEMEN UI & GESTUR =================
+      window.StoryManager = (() => {
+        const state = {
+          isOpen: false,
+          startY: 0,
+          currentY: 0,
+          isDragging: false,
+          animFrameId: null,
+          isAnimating: false,
+        };
+        const domRefs = {
+          ...[
+            'layoutWrapper',
+            'storyGroupWrapper',
+            'storyContainer',
+            'storyProgressBarWrapper',
+            'storyProgressFill',
+            'storySheet',
+            'storySheetHandle',
+            'storyPopup',
+            'storyCardDashboard',
+            'storyContentTemplate',
+            'reactionWrapper',
+            'btnPlayPause',
+            'btnMute',
+            'icon-enter-fs',
+            'icon-exit-fs',
+            'reaction-container',
+            'centerPlayIndicator',
+            'btnPrevStory',
+            'btnNextStory',
+            'storyGestureLayer',
+            'btnToggleReaction',
+            'btnOpenContext',
+            'peekPrev',
+            'peekNext',
+            'mainMediaContainer',
+            'ambientMediaContainer',
+          ].reduce((acc, id) => ({ ...acc, [id]: getEl(id) }), {}),
+          storyViewport: document.querySelector('.story-viewport'),
+        };
+
+        const getActiveContext = () =>
+          window.innerWidth >= 1366
+            ? domRefs.storyCardDashboard
+            : window.innerWidth >= 768
+              ? domRefs.storyPopup
+              : domRefs.storySheet;
+
+        [domRefs.storySheet, domRefs.storyPopup, domRefs.storyCardDashboard].forEach((el) => {
+          const target = el?.querySelector('.story-dynamic-area');
+          if (target && !target.innerHTML.trim())
+            target.appendChild(domRefs.storyContentTemplate.content.cloneNode(true));
+        });
+
+        let focusableElements = [],
+          firstFocusable,
+          lastFocusable;
+        const handleFocusTrap = (e) => {
+          if (e.key !== 'Tab') return;
+          if (e.shiftKey && document.activeElement === firstFocusable) {
+            e.preventDefault();
+            lastFocusable.focus();
+          } else if (!e.shiftKey && document.activeElement === lastFocusable) {
+            e.preventDefault();
+            firstFocusable.focus();
+          }
+        };
+        const initFocusTrap = (ctx) => {
+          focusableElements = ctx.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          );
+          if (focusableElements.length) {
+            firstFocusable = focusableElements[0];
+            lastFocusable = focusableElements[focusableElements.length - 1];
+            ctx.addEventListener('keydown', handleFocusTrap);
+          }
+        };
+
+        let lastSyncCheck = 0;
+        const loopProgress = () => {
+          if (!state.isOpen && currentMedia?.getState() === MEDIA_STATE.PLAYING) {
+            const duration = currentMedia.getDuration();
+            const currentTime = currentMedia.getCurrentTime();
+            if (duration > 0) domRefs.storyProgressFill.style.transform = `scaleX(${currentTime / duration})`;
+            if (currentAmbient) {
+              const now = performance.now();
+              if (now - lastSyncCheck > 1000) {
+                if (Math.abs(currentTime - currentAmbient.getCurrentTime()) > 1.5) currentAmbient.seekTo(currentTime);
+                lastSyncCheck = now;
+              }
+            }
+            state.animFrameId = requestAnimationFrame(loopProgress);
+          } else {
+            state.animFrameId = null;
+          }
+        };
+
+        const startProgressBar = () => {
+          cancelAnimationFrame(state.animFrameId);
+          domRefs.storyProgressFill.style.transform = 'scaleX(0)';
+          state.animFrameId = requestAnimationFrame(loopProgress);
+        };
+        const stopProgressBar = () => cancelAnimationFrame(state.animFrameId);
+
+        let flashTimeout;
+        const toggleIcon = (iconStr, type) => {
+          const iconEl = domRefs.centerPlayIndicator;
+          if (!iconEl) return;
+          clearTimeout(flashTimeout);
+          if (iconStr) iconEl.innerText = iconStr;
+          iconEl.className = 'story-center-play';
+          if (type) iconEl.classList.add(type);
+          if (type === 'is-flashing') flashTimeout = setTimeout(() => iconEl.classList.remove('is-flashing'), 500);
+        };
+        const flashIcon = (iconStr) => {
+          toggleIcon('', '');
+          void domRefs.centerPlayIndicator?.offsetWidth;
+          toggleIcon(iconStr, 'is-flashing');
+        };
+        const showSteadyIcon = (iconStr) => toggleIcon(iconStr, 'is-steady');
+        const hideSteadyIcon = () => domRefs.centerPlayIndicator?.classList.remove('is-steady');
+
+        const checkNavState = () => {
+          domRefs.btnPrevStory?.classList.toggle('is-disabled', currentVideoIndex === 0);
+          domRefs.btnNextStory?.classList.toggle('is-disabled', currentVideoIndex === videoPlaylist.length - 1);
+          domRefs.storyGroupWrapper?.classList.toggle('has-prev', currentVideoIndex > 0);
+          domRefs.storyGroupWrapper?.classList.toggle('has-next', currentVideoIndex < videoPlaylist.length - 1);
+        };
+
+        const resetVideoState = () => {
+          clearTimeout(crossfadeTimer);
+
+          if (state.isOpen) closeContext();
+          closeReactionMenu();
+          hideSteadyIcon();
+          if (domRefs['reaction-container']) domRefs['reaction-container'].innerHTML = '';
+          domRefs.layoutWrapper?.classList.remove('is-clean-mode');
+          domRefs.storyContainer?.classList.remove('show-ui');
+
+          currentMedia?.pause();
+
+          if (domRefs.btnPlayPause) domRefs.btnPlayPause.innerText = '⏸️';
+          domRefs.storyContainer?.classList.remove('is-paused');
+          domRefs.storyContainer?.classList.add('is-loading');
+
+          if (domRefs.storyProgressFill) {
+            domRefs.storyProgressFill.style.transition = 'none';
+            domRefs.storyProgressFill.style.transform = 'scaleX(0)';
+            requestAnimationFrame(() => (domRefs.storyProgressFill.style.transition = ''));
+          }
+
+          const thumbOverlay = getEl('thumbnailOverlay');
+          if (thumbOverlay) {
+            thumbOverlay.style.transition = 'none';
+            thumbOverlay.style.opacity = '1';
+            thumbOverlay.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";
+            thumbOverlay.style.objectFit = '';
+          }
+
+          const blurBg = getEl('videoBlurBg');
+          if (blurBg) {
+            blurBg.style.transition = 'none';
+            blurBg.style.backgroundImage = 'none';
+            blurBg.style.opacity = '0';
+            blurBg.classList.remove('is-inner-breathing');
+          }
+
+          const ambientWrapper = getEl('ambientContainer');
+          if (ambientWrapper) {
+            ambientWrapper.style.backgroundImage = 'none';
+            ambientWrapper.style.backgroundSize = '';
+            ambientWrapper.style.backgroundPosition = '';
+            ambientWrapper.style.backgroundRepeat = '';
+            ambientWrapper.classList.remove('is-breathing');
+          }
+
+          const mainContainer = getEl('mainMediaContainer');
+          if (mainContainer) {
+            mainContainer.style.transition = 'none';
+            mainContainer.style.opacity = '0';
+            requestAnimationFrame(() => (mainContainer.style.transition = 'opacity 0.4s var(--ease-out)'));
+          }
+
+          const ambientMediaContainer = getEl('ambientMediaContainer');
+          if (ambientMediaContainer) {
+            ambientMediaContainer.style.transition = 'none';
+            ambientMediaContainer.style.opacity = '0';
+            requestAnimationFrame(() => (ambientMediaContainer.style.transition = 'opacity 1s var(--ease-out)'));
+          }
+        };
+
+        const seekVideo = (offset) => {
+          if (!currentMedia) return;
+          const duration = currentMedia.getDuration();
+          if (!duration) return;
+          const newTime = Math.max(0, Math.min(currentMedia.getCurrentTime() + offset, duration));
+          currentMedia.seekTo(newTime);
+          if (currentAmbient) currentAmbient.seekTo(newTime);
+          domRefs.storyProgressFill.style.transform = `scaleX(${newTime / duration})`;
+        };
+
+        const slideTransition = (direction, callback) => {
+          const viewport = domRefs.storyViewport;
+          if (!viewport) return callback();
+          const dirMultiplier = direction === 'next' ? -1 : 1;
+          viewport.style.transition = 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.35s ease';
+          viewport.style.transform = `translateY(${dirMultiplier * 100}%) scale(0.95)`;
+          viewport.style.opacity = '0';
+          setTimeout(() => {
+            callback();
+            viewport.style.transition = 'none';
+            viewport.style.transform = `translateY(${dirMultiplier * -100}%) scale(0.95)`;
+            void viewport.offsetHeight;
+            viewport.style.transition = 'transform 0.45s cubic-bezier(0.34, 1.5, 0.64, 1), opacity 0.4s ease';
+            viewport.style.transform = 'translateY(0) scale(1)';
+            viewport.style.opacity = '1';
+            setTimeout(
+              () =>
+                Object.assign(
+                  viewport.style,
+                  { transition: '', transform: '', opacity: '' },
+                  (state.isAnimating = false),
+                ),
+              450,
+            );
+          }, 350);
+        };
+
+        const switchVideo = (step) => {
+          if (state.isAnimating) return;
+          const newIndex = currentVideoIndex + step;
+          if (newIndex >= 0 && newIndex < videoPlaylist.length) {
+            state.isAnimating = true;
+            resetVideoState();
+            slideTransition(step > 0 ? 'next' : 'prev', () => {
+              currentVideoIndex = newIndex;
+              updateVideoUI();
+            });
+          }
+        };
+
+        const closeStory = () => {
+          currentMedia?.pause();
+          domRefs.layoutWrapper.style.opacity = '0';
+          setTimeout(() => (domRefs.layoutWrapper.style.display = 'none'), 500);
+        };
+        const togglePlayPause = () => {
+          if (currentMedia?.getState() === MEDIA_STATE.PLAYING) {
+            currentMedia.pause();
+            flashIcon('⏸️');
+          } else {
+            currentMedia?.play();
+            currentAmbient?.seekTo(currentMedia.getCurrentTime());
+            currentAmbient?.play();
+            flashIcon('▶️');
+          }
+        };
+        const toggleMute = () => {
+          isGlobalMuted = !isGlobalMuted;
+          isGlobalMuted ? currentMedia?.mute?.() : currentMedia?.unMute?.();
+          if (domRefs.btnMute) {
+            domRefs.btnMute.innerText = isGlobalMuted ? '🔇' : '🔊';
+            domRefs.btnMute.setAttribute('aria-label', isGlobalMuted ? 'Unmute Audio' : 'Mute Audio');
+          }
+        };
+
+        const toggleContext = (open) => {
+          const ctx = getActiveContext();
+          if (!ctx) return;
+          state.isOpen = open;
+          domRefs.layoutWrapper?.classList.toggle('is-ui-open', open);
+          domRefs.layoutWrapper?.classList.remove('is-clean-mode');
+          ctx.classList.toggle('is-active', open);
+          if (open) {
+            domRefs['icon-enter-fs'].style.display = 'block';
+            domRefs['icon-exit-fs'].style.display = 'none';
+            if (window.innerWidth < 1366) currentMedia?.pause();
+            closeReactionMenu();
+            domRefs.storyGroupWrapper?.setAttribute('aria-hidden', 'true');
+            initFocusTrap(ctx);
+            setTimeout(() => (ctx.querySelector('.story-view__title') || firstFocusable)?.focus(), 100);
+          } else {
+            domRefs.storySheet?.classList.remove('is-active');
+            domRefs.storyPopup?.classList.remove('is-active');
+            domRefs.storyCardDashboard?.classList.remove('is-active');
+            domRefs.storySheet.querySelector('.story-sheet__content').style.transform = '';
+            if (window.innerWidth < 1366) currentMedia?.play();
+            ctx.removeEventListener('keydown', handleFocusTrap);
+            domRefs.storyGroupWrapper?.removeAttribute('aria-hidden');
+            domRefs.btnOpenContext?.focus();
+          }
+        };
+        const openContext = () => toggleContext(true);
+        const closeContext = () => toggleContext(false);
+        const toggleReactionMenu = () => {
+          const isActive = domRefs.reactionWrapper?.classList.toggle('is-active');
+          domRefs.btnToggleReaction?.setAttribute('aria-expanded', isActive);
+        };
+        const closeReactionMenu = () => {
+          domRefs.reactionWrapper?.classList.remove('is-active');
+          domRefs.btnToggleReaction?.setAttribute('aria-expanded', 'false');
+        };
+        const nativeShare = async () => {
+          const url = window.location.href;
+          try {
+            if (navigator.share) await navigator.share({ title: videoPlaylist[currentVideoIndex].title, url });
+            else {
+              navigator.clipboard.writeText(url);
+              alert('Tautan berhasil disalin!');
+            }
+          } catch (e) {}
+        };
+
+        const react = (emoji) => {
+          const fragment = document.createDocumentFragment();
+          for (let i = 0; i < 35; i++) {
+            const el = document.createElement('div');
+            const depth = Math.random();
+            el.className = 'particle';
+            el.innerText = emoji;
+            el.style.cssText = `--x:${Math.random() * 100}%;--size:${depth * 1.2 + 1.2}rem;--blur:${depth < 0.2 ? '2px' : '0px'};--z:${depth > 0.5 ? 20 : 1};--duration:${3500 - depth * 1500}ms;--delay:${Math.random() * 600}ms;--rotation:${(Math.random() - 0.5) * 720}deg;--drift:${(Math.random() - 0.5) * 120}px;`;
+            el.onanimationend = () => el.remove();
+            fragment.appendChild(el);
+          }
+          domRefs['reaction-container']?.appendChild(fragment);
+          navigator.vibrate?.(40);
+          const mainBtn = domRefs.reactionWrapper?.querySelector('.player-fab');
+          if (mainBtn) {
+            mainBtn.innerText = emoji;
+            setTimeout(() => (mainBtn.innerText = '🤍'), 1500);
+          }
+          closeReactionMenu();
+        };
+
+        const getClientX = (e) => e.touches?.[0]?.clientX ?? e.clientX;
+        const getClientY = (e) => e.touches?.[0]?.clientY ?? e.clientY;
+
+        const initProgressBarGestures = () => {
+          let isScrubbing = false,
+            wasPlaying = false;
+          const updateSeek = (clientX) => {
+            const rect = domRefs.storyProgressBarWrapper.getBoundingClientRect();
+            const percentage = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+            domRefs.storyProgressFill.style.transform = `scaleX(${percentage})`;
+            const newTime = (currentMedia?.getDuration?.() ?? 0) * percentage;
+            currentMedia?.seekTo(newTime);
+            if (currentAmbient) currentAmbient.seekTo(newTime);
+          };
+          const moveScrub = (e) => {
+            if (!isScrubbing) return;
+            if (e.cancelable) e.preventDefault();
+            updateSeek(getClientX(e));
+          };
+          const stopScrub = () => {
+            if (!isScrubbing) return;
+            isScrubbing = false;
+            if (wasPlaying) currentMedia?.play();
+            window.removeEventListener('mousemove', moveScrub);
+            window.removeEventListener('touchmove', moveScrub);
+            window.removeEventListener('mouseup', stopScrub);
+            window.removeEventListener('touchend', stopScrub);
+          };
+          const startScrub = (e) => {
+            isScrubbing = true;
+            wasPlaying = currentMedia?.getState() === MEDIA_STATE.PLAYING;
+            if (wasPlaying) currentMedia?.pause();
+            updateSeek(getClientX(e));
+            window.addEventListener('mousemove', moveScrub);
+            window.addEventListener('touchmove', moveScrub, { passive: false });
+            window.addEventListener('mouseup', stopScrub);
+            window.addEventListener('touchmove', stopScrub);
+          };
+          domRefs.storyProgressBarWrapper?.addEventListener('mousedown', startScrub);
+          domRefs.storyProgressBarWrapper?.addEventListener('touchstart', startScrub, { passive: true });
+        };
+
+        const initGestures = () => {
+          let startX = 0,
+            startY = 0,
+            lastTapTime = 0,
+            clickTimer,
+            longPressTimer;
+          let isLongPressActive = false,
+            isSwiping = false,
+            holdAction = null;
+          const layer = domRefs.storyGestureLayer;
+
+          layer?.addEventListener('contextmenu', (e) => e.preventDefault());
+          layer?.addEventListener('pointerdown', (e) => {
+            if (state.isAnimating || (e.pointerType === 'mouse' && e.button !== 0)) return;
+            startX = e.clientX;
+            startY = e.clientY;
+            isLongPressActive = isSwiping = false;
+            holdAction = e.target.getAttribute('data-action');
+            longPressTimer = setTimeout(() => {
+              isLongPressActive = true;
+              if (holdAction === 'playpause') {
+                domRefs.layoutWrapper?.classList.add('is-clean-mode');
+                currentMedia?.pause();
+              } else {
+                const rate = holdAction === 'forward' ? 2 : 0.5;
+                currentMedia?.setPlaybackRate(rate);
+                if (currentAmbient) currentAmbient.setPlaybackRate(rate);
+                showSteadyIcon(holdAction === 'forward' ? '⏩ 2x' : '⏪ 0.5x');
+              }
+            }, 400);
+          });
+          layer?.addEventListener('pointermove', (e) => {
+            if (state.isAnimating || !startX) return;
+            if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
+              clearTimeout(longPressTimer);
+              isSwiping = true;
+            }
+          });
+          layer?.addEventListener('pointerup', (e) => {
+            if (state.isAnimating || !startX) return;
+            clearTimeout(longPressTimer);
+            const dy = e.clientY - startY;
+            startX = 0;
+            if (isLongPressActive) {
+              if (holdAction === 'playpause') {
+                domRefs.layoutWrapper?.classList.remove('is-clean-mode');
+                currentMedia?.play();
+              } else {
+                currentMedia?.setPlaybackRate(1);
+                if (currentAmbient) currentAmbient.setPlaybackRate(1);
+                hideSteadyIcon();
+              }
+              return;
+            }
+            if (isSwiping && Math.abs(dy) > 50) return switchVideo(dy > 0 ? -1 : 1);
+            if (!isSwiping) {
+              if (holdAction === 'rewind') {
+                seekVideo(-10);
+                flashIcon('⏪');
+              } else if (holdAction === 'forward') {
+                seekVideo(10);
+                flashIcon('⏩');
+              } else if (holdAction === 'playpause') {
+                const tapLength = Date.now() - lastTapTime;
+                lastTapTime = Date.now();
+                if (tapLength > 0 && tapLength < 300) {
+                  clearTimeout(clickTimer);
+                  react('❤️');
+                  flashIcon('❤️');
+                } else {
+                  clickTimer = setTimeout(togglePlayPause, 250);
+                }
+              }
+            }
+          });
+          layer?.addEventListener('pointercancel', () => {
+            clearTimeout(longPressTimer);
+            startX = 0;
+          });
+        };
+
+        const initDrag = () => {
+          let rAFDrag = null;
+          const contentSheet = domRefs.storySheet?.querySelector('.story-sheet__content');
+          const move = (e) => {
+            if (!state.isDragging || window.innerWidth >= 768) return;
+            if (e.cancelable) e.preventDefault();
+            cancelAnimationFrame(rAFDrag);
+            rAFDrag = requestAnimationFrame(() => {
+              state.currentY = getClientY(e) - state.startY;
+              if (state.currentY < 0) state.currentY *= 0.2;
+              contentSheet.style.transform = `translateY(${state.currentY}px)`;
+            });
+          };
+          const end = () => {
+            if (!state.isDragging || window.innerWidth >= 768) return;
+            state.isDragging = false;
+            contentSheet.classList.remove('is-dragging');
+            ['mousemove', 'touchmove', 'mouseup', 'touchend'].forEach((evt) =>
+              window.removeEventListener(evt, evt.includes('move') ? move : end),
+            );
+            if (state.currentY > 120) closeContext();
+            else contentSheet.style.transform = '';
+            state.currentY = 0;
+          };
+          const start = (e) => {
+            if (window.innerWidth >= 768) return;
+            state.startY = getClientY(e);
+            state.isDragging = true;
+            contentSheet.classList.add('is-dragging');
+            window.addEventListener('mousemove', move);
+            window.addEventListener('touchmove', move, { passive: false });
+            window.addEventListener('mouseup', end);
+            window.addEventListener('touchend', end);
+          };
+          domRefs.storySheetHandle?.addEventListener('mousedown', start);
+          domRefs.storySheetHandle?.addEventListener('touchstart', start, { passive: true });
+        };
+
+        const initEventListeners = () => {
+          initProgressBarGestures();
+          initGestures();
+          initDrag();
+          let lastWheelTime = 0;
+          window.addEventListener(
+            'wheel',
+            (e) => {
+              if (e.target.closest('.story-body, .story-card, .story-sheet, .story-popup')) return;
+              const now = Date.now();
+              if (now - lastWheelTime < 800 || state.isAnimating) return;
+              if (e.deltaY > 20) {
+                switchVideo(1);
+                lastWheelTime = now;
+              } else if (e.deltaY < -20) {
+                switchVideo(-1);
+                lastWheelTime = now;
+              }
+            },
+            { passive: true },
+          );
+
+          document.addEventListener('keydown', (e) => {
+            if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || state.isOpen || state.isAnimating) return;
+            const keyMap = {
+              Space: () => {
+                e.preventDefault();
+                togglePlayPause();
+              },
+              ArrowDown: () => switchVideo(1),
+              ArrowUp: () => switchVideo(-1),
+              ArrowRight: () => {
+                seekVideo(10);
+                flashIcon('⏩');
+              },
+              ArrowLeft: () => {
+                seekVideo(-10);
+                flashIcon('⏪');
+              },
+            };
+            keyMap[e.code]?.();
+          });
+
+          document.addEventListener('click', (e) => {
+            const t = e.target;
+            if (t.closest('.story-close-btn, .overlay-backdrop')) return closeContext();
+            if (t.closest('.reaction-option-btn')) return react(t.closest('.reaction-option-btn').dataset.reaction);
+
+            const actionMap = {
+              '#btnPlayPause': togglePlayPause,
+              '#btnMute': toggleMute,
+              '#btnPrevStory': () => switchVideo(-1),
+              '#btnNextStory': () => switchVideo(1),
+              '#peekPrev': () => switchVideo(-1),
+              '#peekNext': () => switchVideo(1),
+              '#btnStoryClosePlayer': closeStory,
+              '#btnOpenContext': openContext,
+              '#btnToggleReaction': toggleReactionMenu,
+              '#btnShare': nativeShare,
+              '#btnCleanMode': () => {
+                closeReactionMenu();
+                domRefs.layoutWrapper?.classList.toggle('is-clean-mode');
+              },
+            };
+            for (let selector in actionMap) if (t.closest(selector)) return actionMap[selector](e);
+            if (domRefs.reactionWrapper && !domRefs.reactionWrapper.contains(t)) closeReactionMenu();
+          });
+
+          window.addEventListener('popstate', () => {
+            const v = new URLSearchParams(window.location.search).get('v');
+            if (v) {
+              const foundIndex = videoPlaylist.findIndex(
+                (item) => item.type === 'youtube' && parseYouTubeData(item.url).videoId === v,
+              );
+              if (foundIndex > -1 && foundIndex !== currentVideoIndex) {
+                if (state.isAnimating) return;
+                currentVideoIndex = foundIndex;
+                updateVideoUI();
+              }
+            }
+          });
+
+          let resizeTimer;
+          window.addEventListener('resize', () => {
+            if (resizeTimer) cancelAnimationFrame(resizeTimer);
+            resizeTimer = requestAnimationFrame(() => {
+              if (window.innerWidth < 768 && currentAmbient) {
+                currentAmbient.destroy();
+                currentAmbient = null;
+              } else if (window.innerWidth >= 768 && !currentAmbient && currentMedia) {
+                const ambientContainer = getEl('ambientMediaContainer');
+                const data = videoPlaylist[currentVideoIndex];
+                currentAmbient = MediaFactory.create(
+                  ambientContainer,
+                  data,
+                  {
+                    onReady: () => {
+                      currentAmbient.seekTo(currentMedia.getCurrentTime());
+                      if (currentMedia.getState() === MEDIA_STATE.PLAYING) currentAmbient.play();
+                    },
+                  },
+                  true,
+                );
+                currentAmbient.load();
+              }
+            });
+          });
+        };
+
+        initEventListeners();
+
+        return {
+          startProgressBar,
+          stopProgressBar,
+          checkNavState,
+          showSteadyIcon,
+          hideSteadyIcon,
+          isAnimatingState: () => state.isAnimating,
+        };
+      })();
+
+      // ================= INISIALISASI YOUTUBE API =================
+      const loadYouTubeAPI = () => {
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+      };
+      function onYouTubeIframeAPIReady() {
+        isApiReady = true;
+        updateVideoUI();
+      }
+      loadYouTubeAPI();
+    </script>
+  </body>
+</html>
