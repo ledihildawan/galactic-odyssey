@@ -1845,20 +1845,25 @@
         // --- Render Thumbnails ---
         ThumbnailResolver.resolve(data, (url) => {
           if (!url) return;
+
           if (blurBg) {
             blurBg.style.backgroundImage = `url(${url})`;
+            blurBg.style.backgroundSize = 'cover';
             blurBg.style.opacity = isShort ? '0' : '1';
           }
+
           if (thumbOverlay) {
             thumbOverlay.src = url;
+            thumbOverlay.style.objectFit = isShort ? 'cover' : 'contain';
             thumbOverlay.style.display = '';
           }
 
           const ambientWrapper = getEl('ambientContainer');
           if (ambientWrapper) {
             ambientWrapper.style.backgroundImage = `url(${url})`;
-            ambientWrapper.style.backgroundSize = 'cover';
+            ambientWrapper.style.backgroundSize = isShort ? 'cover' : 'contain';
             ambientWrapper.style.backgroundPosition = 'center';
+            ambientWrapper.style.backgroundRepeat = 'no-repeat';
           }
         });
         ThumbnailResolver.resolve(videoPlaylist[currentVideoIndex - 1], (url) => {
@@ -2091,12 +2096,22 @@
             thumbOverlay.style.transition = 'none';
             thumbOverlay.style.opacity = '1';
             thumbOverlay.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";
+            thumbOverlay.style.objectFit = ''; // Kosongkan agar tidak bentrok dengan video berikutnya
           }
 
           const blurBg = getEl('videoBlurBg');
           if (blurBg) {
+            blurBg.style.transition = 'none';
             blurBg.style.backgroundImage = 'none';
             blurBg.style.opacity = '0';
+          }
+
+          const ambientWrapper = getEl('ambientContainer');
+          if (ambientWrapper) {
+            ambientWrapper.style.backgroundImage = 'none';
+            ambientWrapper.style.backgroundSize = '';
+            ambientWrapper.style.backgroundPosition = '';
+            ambientWrapper.style.backgroundRepeat = '';
           }
 
           const mainContainer = getEl('mainMediaContainer');
@@ -2106,17 +2121,11 @@
             requestAnimationFrame(() => (mainContainer.style.transition = 'opacity 0.4s var(--ease-out)'));
           }
 
-          const ambientWrapper = getEl('ambientContainer');
-          if (ambientWrapper) {
-            ambientWrapper.style.backgroundImage = 'none';
-          }
-
-          if (domRefs.ambientMediaContainer) {
-            domRefs.ambientMediaContainer.style.transition = 'none';
-            domRefs.ambientMediaContainer.style.opacity = '0';
-            requestAnimationFrame(
-              () => (domRefs.ambientMediaContainer.style.transition = 'opacity 1s var(--ease-out)'),
-            );
+          const ambientMediaContainer = getEl('ambientMediaContainer');
+          if (ambientMediaContainer) {
+            ambientMediaContainer.style.transition = 'none';
+            ambientMediaContainer.style.opacity = '0';
+            requestAnimationFrame(() => (ambientMediaContainer.style.transition = 'opacity 1s var(--ease-out)'));
           }
         };
 
