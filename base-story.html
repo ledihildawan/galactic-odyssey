@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://www.youtube.com" />
     <link rel="preconnect" href="https://i.ytimg.com" />
 
-    <title>Telkomsel Story - Final Build Stabil (Adapter Pattern + Image)</title>
+    <title>Telkomsel Story - Final Build Stabil (Multi Adapter)</title>
     <style>
       :root {
         --brand-red: #ee2d24;
@@ -1340,7 +1340,7 @@
             };
             img.src = maxResUrl;
           } else {
-            // Untuk format non-youtube (termasuk gambar statis kita), gunakan fallback ini
+            // Berlaku untuk format 'image' maupun 'video' (MP4)
             callback(data.thumbnail || null);
           }
         },
@@ -1488,11 +1488,10 @@
         }
       }
 
-      // ================= ADAPTER UNTUK GAMBAR (IMAGE) =================
       class ImageHandler extends BaseMediaHandler {
         constructor(container, data, callbacks, isAmbient = false) {
           super(container, data, callbacks, isAmbient);
-          this.duration = 5; // Durasi simulasi gambar (5 detik)
+          this.duration = 5;
           this.currentTime = 0;
           this.timer = null;
           this.lastTick = 0;
@@ -1504,14 +1503,13 @@
           this.img.src = this.data.url;
           this.img.style.width = '100%';
           this.img.style.height = '100%';
-          // Gambar utama pakai 'contain', layer blur (ambient) pakai 'cover'
           this.img.style.objectFit = this.isAmbient ? 'cover' : 'contain';
           this.img.style.pointerEvents = 'none';
 
           this.container.appendChild(this.img);
 
           const handleLoad = () => {
-            this.state = MEDIA_STATE.PAUSED; // Siap dimainkan
+            this.state = MEDIA_STATE.PAUSED;
             if (this.callbacks.onReady) this.callbacks.onReady({ target: this });
           };
 
@@ -1574,6 +1572,91 @@
         }
       }
 
+      class HTML5VideoHandler extends BaseMediaHandler {
+        load() {
+          this.video = document.createElement('video');
+          this.video.src = this.data.url;
+          this.video.style.width = '100%';
+          this.video.style.height = '100%';
+
+          // Asumsi video rasio vertikal biasanya diisi cover di ponsel, kita pasang 'contain' agar aman
+          this.video.style.objectFit = this.isAmbient ? 'cover' : 'contain';
+
+          this.video.playsInline = true;
+          this.video.crossOrigin = 'anonymous';
+          this.video.muted = this.isAmbient || isGlobalMuted;
+
+          this.container.appendChild(this.video);
+
+          this.video.addEventListener('loadedmetadata', () => {
+            if (this.callbacks.onReady) this.callbacks.onReady({ target: this });
+          });
+
+          this.video.addEventListener('play', () => this.emitStateChange(MEDIA_STATE.PLAYING));
+          this.video.addEventListener('pause', () => this.emitStateChange(MEDIA_STATE.PAUSED));
+          this.video.addEventListener('playing', () => this.emitStateChange(MEDIA_STATE.PLAYING));
+          this.video.addEventListener('waiting', () => this.emitStateChange(MEDIA_STATE.BUFFERING));
+          this.video.addEventListener('ended', () => this.emitStateChange(MEDIA_STATE.ENDED));
+
+          this.video.addEventListener('error', (e) => {
+            console.error('Video Error:', this.video.error);
+          });
+        }
+
+        play() {
+          const playPromise = this.video?.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((error) => {
+              console.warn('Autoplay dicegah oleh browser:', error);
+              this.emitStateChange(MEDIA_STATE.PAUSED);
+            });
+          }
+        }
+
+        pause() {
+          this.video?.pause();
+        }
+        mute() {
+          if (this.video) this.video.muted = true;
+        }
+        unMute() {
+          if (this.video) this.video.muted = false;
+        }
+        seekTo(time) {
+          if (this.video) this.video.currentTime = time;
+        }
+
+        getCurrentTime() {
+          return this.video?.currentTime || 0;
+        }
+        getDuration() {
+          return this.video?.duration || 0;
+        }
+        setPlaybackRate(rate) {
+          if (this.video) this.video.playbackRate = rate;
+        }
+        isMuted() {
+          return this.video?.muted || false;
+        }
+
+        getState() {
+          if (!this.video) return MEDIA_STATE.UNSTARTED;
+          if (this.video.ended) return MEDIA_STATE.ENDED;
+          if (this.video.paused) return MEDIA_STATE.PAUSED;
+          if (this.video.readyState < 3) return MEDIA_STATE.BUFFERING;
+          return MEDIA_STATE.PLAYING;
+        }
+
+        destroy() {
+          if (this.video) {
+            this.video.pause();
+            this.video.removeAttribute('src');
+            this.video.load();
+          }
+          super.destroy();
+        }
+      }
+
       class MediaFactory {
         static create(container, data, callbacks, isAmbient = false) {
           switch (data.type) {
@@ -1581,6 +1664,8 @@
               return new YouTubeHandler(container, data, callbacks, isAmbient);
             case 'image':
               return new ImageHandler(container, data, callbacks, isAmbient);
+            case 'video': // Handler HTML5
+              return new HTML5VideoHandler(container, data, callbacks, isAmbient);
             default:
               console.warn('Tipe media tidak didukung');
               return null;
@@ -1593,41 +1678,43 @@
         {
           type: 'youtube',
           url: 'https://www.youtube.com/watch?v=lxSM-MYJsA8',
-          categories: ['Match Highlight', 'UCL', 'Trending'],
-          title: 'Highlight Lengkap Gol Liga Champions Matchday 7! 🔥',
+          categories: ['Match Highlight', 'UCL'],
+          title: 'Highlight Gol Liga Champions! 🔥',
           meta: 'UEFA Champions League • 2 Jam yang lalu',
           excerpt: 'Semua gol dari Matchday ke-7 Liga Champions UEFA! Laga penuh aksi, kejutan tak terduga.',
           content: '<p>Saksikan cuplikan lengkap seluruh gol dari ajang UEFA Champions League Matchday ke-7...</p>',
         },
-        // --- ADAPTER BARU DI SINI ---
+        // --- ADAPTER GAMBAR ---
         {
           type: 'image',
           url: 'https://images.unsplash.com/photo-1682687220742-aba13b6e50ba?q=80&w=1080&auto=format&fit=crop',
-          thumbnail: 'https://images.unsplash.com/photo-1682687220742-aba13b6e50ba?q=80&w=200&auto=format&fit=crop', // Harus ada thumbnail manual
+          thumbnail: 'https://images.unsplash.com/photo-1682687220742-aba13b6e50ba?q=80&w=200&auto=format&fit=crop',
           categories: ['Photography', 'Image API'],
-          title: 'Keindahan Alam (Contoh Adapter Gambar)',
+          title: 'Keindahan Alam (Adapter Gambar)',
           meta: 'Unsplash Image • Baru Saja',
-          excerpt: 'Contoh sempurna eksekusi arsitektur terbuka di mana file statis dimainkan bagai video.',
+          excerpt: 'Contoh statis dimainkan bagai video dengan durasi 5 detik.',
+          content: '<p>Adapter untuk image berjalan lancar dengan timer fake di baliknya.</p>',
+        },
+        // --- ADAPTER VIDEO HTML5 ---
+        {
+          type: 'video',
+          url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+          thumbnail: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
+          categories: ['Movie Trailer', 'HTML5 Native'],
+          title: 'Trailer Film Animasi (Native MP4) 🎬',
+          meta: 'Google Sample • 5 Menit yang lalu',
+          excerpt: 'Contoh penerapan HTML5 native video adapter yang langsung membaca event DOM.',
           content:
-            '<p>Kode Anda sangat baik dalam menerapkan Adapter Pattern. Kelas <code>ImageHandler</code> berhasil disisipkan dengan mulus tanpa mengubah inti kode UI, menambahkan simulasi waktu 5 detik untuk mengakomodasi navigasi progres.</p>',
+            '<p>Video MP4 ini dimainkan secara native melalui tag <code>&lt;video&gt;</code> HTML5 tanpa bergantung pada API pihak ketiga seperti YouTube.</p>',
         },
         {
           type: 'youtube',
           url: 'https://www.youtube.com/shorts/Km5xz7NKqlA',
           categories: ['Tips & Trik', 'Football Skills'],
-          title: 'Trik Ampuh Meningkatkan Skill Dribbling Sepak Bola ⚽',
+          title: 'Trik Ampuh Dribbling Sepak Bola ⚽',
           meta: 'Football Skills • 5 Jam yang lalu',
           excerpt: '',
           content: '<p>Latihan ini berfokus pada penguasaan <i>close control</i>, kecepatan menggiring bola...</p>',
-        },
-        {
-          type: 'youtube',
-          url: 'https://www.youtube.com/watch?v=p-2feskqE3w',
-          categories: ['Update Transfer', 'News', 'EPL'],
-          title: 'Update Bursa Transfer: Manuver Mengejutkan Arsenal & Liverpool 💸',
-          meta: 'Transfer News • 1 Hari yang lalu',
-          excerpt: 'Arsenal incar Julian Alvarez, Liverpool bahas potensi penjualan Andy Robertson.',
-          content: '<p>Bursa transfer musim ini kembali memanas! Kabar mengejutkan datang dari kubu Arsenal...</p>',
         },
       ];
 
@@ -1687,7 +1774,6 @@
           currentAmbient?.pause();
         } else if (state === MEDIA_STATE.ENDED) {
           StoryManager.stopProgressBar();
-          // Loop video/gambar secara otomatis (Sesuai instruksi untuk tidak ada fitur auto-next)
           currentMedia.seekTo(0);
           currentMedia.play();
         }
@@ -1748,7 +1834,6 @@
         const peekNextEl = getEl('peekNext');
 
         const isShort = data.type === 'youtube' && parseYouTubeData(data.url).isShort;
-        // Gambar akan memanfaatkan object-fit contain default
         const objectFitStyle = isShort ? 'cover' : 'contain';
 
         if (thumbOverlay) {
@@ -1834,7 +1919,6 @@
           const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?v=${id}`;
           if (window.location.search !== `?v=${id}`) window.history.pushState({ path: newUrl }, '', newUrl);
         } else {
-          // Hapus parameter ?v= dari URL agar lebih bersih jika sedang fokus di image adapter
           const base = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
           window.history.pushState({ path: base }, '', base);
         }
